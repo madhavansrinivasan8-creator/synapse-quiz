@@ -2,1324 +2,432 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SYNAPSE 2026 - Speed Round Arena</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- QRCode.js library -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SYNAPSE '26 - Technical Quiz Arena</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- Canvas Confetti library -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <!-- Google Fonts: Orbitron & Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            orbitron: ['Orbitron', 'sans-serif'],
-            sans: ['Inter', 'sans-serif'],
-          },
-          colors: {
-            cyberDark: '#080d1a',
-            cyberCard: 'rgba(15, 23, 42, 0.75)',
-            neonCyan: '#06b6d4',
-            neonPurple: '#a855f7',
-            neonGreen: '#10b981',
-            neonRose: '#f43f5e',
-          },
-          animation: {
-            pulseFast: 'pulse 0.6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            glow: 'glow 2s ease-in-out infinite alternate',
-          },
-          keyframes: {
-            glow: {
-              '0%': { boxShadow: '0 0 15px rgba(6, 182, 212, 0.4)' },
-              '100%': { boxShadow: '0 0 30px rgba(168, 85, 247, 0.7)' },
-            }
-          }
-        }
-      }
-    }
-  </script>
-
   <style>
-    /* Custom Glassmorphism & Cyber Accents */
-    body {
-      background: radial-gradient(circle at 50% 20%, #172554 0%, #080d1a 65%, #030712 100%);
-      min-height: 100vh;
-      color: #f8fafc;
-      overflow-x: hidden;
-      user-select: none;
+    :root {
+      --bg: #090d16;
+      --card: #131b2e;
+      --accent: #38bdf8;
+      --correct: #10b981;
+      --wrong: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
     }
-    .glass-panel {
-      background: rgba(15, 23, 42, 0.65);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 10px 35px 0 rgba(0, 0, 0, 0.6);
-    }
-    .cyber-btn {
-      position: relative;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .cyber-btn:hover:not(:disabled) {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 0 20px rgba(6, 182, 212, 0.6);
-    }
-    .cyber-btn:active:not(:disabled) {
-      transform: translateY(1px) scale(0.98);
-    }
-    .timer-ring-circle {
-      transition: stroke-dashoffset 0.95s linear, stroke 0.3s ease;
-      transform: rotate(-90deg);
-      transform-origin: 50% 50%;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+    .screen { display: none; width: 100%; max-width: 540px; text-align: center; }
+    .active { display: block; animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card { background: var(--card); border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    h1 { font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }
+    h2 { font-size: 20px; margin-bottom: 16px; }
+    p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+
+    input, select, button { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #334155; font-size: 16px; background: #1e293b; color: white; outline: none; }
+    button { background: #2563eb; font-weight: 700; border: none; cursor: pointer; transition: 0.15s; }
+    button:active { transform: scale(0.98); }
+    button.host-btn { background: #059669; margin-top: 10px; }
+    button.cancel-btn { background: transparent; border: 1px solid #475569; color: var(--muted); }
+
+    /* Timer */
+    .timer-badge { font-size: 42px; font-weight: 900; color: #f59e0b; margin: 10px 0; }
+    .timer-urgent { color: var(--wrong); animation: pulse 0.5s infinite alternate; }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+    /* Player Options */
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+    .opt-btn { background: #1e293b; border: 2px solid #334155; color: white; padding: 22px 12px; font-size: 18px; font-weight: 700; border-radius: 12px; cursor: pointer; }
+    .opt-btn:active { background: #334155; }
+    .opt-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .opt-A { border-color: #ef4444; }
+    .opt-B { border-color: #3b82f6; }
+    .opt-C { border-color: #eab308; }
+    .opt-D { border-color: #10b981; }
+
+    /* Host Answer List */
+    .host-answers { list-style: none; margin: 16px 0; text-align: left; }
+    .host-answers li { padding: 12px 16px; margin-bottom: 8px; border-radius: 8px; background: #1e293b; border-left: 5px solid #64748b; font-size: 15px; }
+    .host-answers li.correct-highlight { border-left-color: var(--correct); background: rgba(16, 185, 129, 0.15); font-weight: bold; }
+
+    /* Badges & Tables */
+    .roster { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 16px 0; }
+    .badge { background: #1e293b; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 20px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
+    th, td { padding: 10px; border-bottom: 1px solid #1e293b; font-size: 15px; }
+    th { color: var(--muted); }
+    #qrcode { display: flex; justify-content: center; margin: 15px 0; }
   </style>
 </head>
-<body class="font-sans antialiased flex flex-col justify-between">
+<body>
 
-  <!-- Top Global Header -->
-  <header class="w-full glass-panel border-b border-cyan-500/20 py-3 px-4 sm:px-8 flex justify-between items-center z-50 sticky top-0">
-    <div class="flex items-center space-x-3">
-      <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyan-500 to-purple-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-        <span class="font-orbitron font-extrabold text-white text-lg tracking-wider">⚡</span>
-      </div>
-      <div>
-        <h1 class="font-orbitron font-black text-xl sm:text-2xl tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-purple-400">
-          SYNAPSE
-        </h1>
-        <p class="text-[10px] tracking-widest uppercase text-cyan-300/80 font-bold -mt-1">Round 2 • Speed Arena</p>
-      </div>
+  <!-- JOIN VIEW (TEAMS & HOST ENTRY) -->
+  <div id="screenJoin" class="screen active card">
+    <h1>SYNAPSE '26</h1>
+    <p>Round 2: Rapid Technical Quiz</p>
+    <input type="text" id="teamName" placeholder="Enter Team Name (e.g. ByteForce)">
+    <select id="teamAvatar">
+      <option value="⚡">⚡ Lightning</option>
+      <option value="🚀">🚀 Rockets</option>
+      <option value="🤖">🤖 CyberBots</option>
+      <option value="🧠">🧠 Neural</option>
+      <option value="🔥">🔥 Titans</option>
+    </select>
+    <button onclick="joinAsTeam()">Join as Participating Team</button>
+    <button class="host-btn" onclick="openHostPasswordModal()">🔒 Open Host Control Screen</button>
+  </div>
+
+  <!-- HOST PASSWORD AUTH MODAL -->
+  <div id="screenHostAuth" class="screen card">
+    <h2>Host Authentication</h2>
+    <p>Enter the master security password to access host controls.</p>
+    <input type="password" id="hostPasswordInput" placeholder="Enter Host Password">
+    <button onclick="verifyHostPassword()" style="background: var(--correct);">Unlock Host Dashboard</button>
+    <button class="cancel-btn" onclick="showScreen('screenJoin')">Back to Join Screen</button>
+    <p id="authError" style="color: var(--wrong); margin-top: 10px; font-weight: bold;"></p>
+  </div>
+
+  <!-- PLAYER LOBBY -->
+  <div id="screenPlayerLobby" class="screen card">
+    <h2 id="playerGreeting">Welcome!</h2>
+    <p>Connected to Synapse Host Server.</p>
+    <div style="font-size: 50px; margin: 20px 0;">📱</div>
+    <p>Keep this screen open. The quiz will begin as soon as the Host starts Round 2!</p>
+  </div>
+
+  <!-- PLAYER GAME SCREEN (Buttons Only, No Answers Displayed) -->
+  <div id="screenPlayerGame" class="screen card">
+    <div style="display: flex; justify-content: space-between; color: var(--muted); font-size: 13px;">
+      <span id="playerQIndex">Question 1 / 20</span>
+      <span id="playerScoreDisplay">Score: 0</span>
     </div>
-
-    <div class="flex items-center space-x-3">
-      <button id="audioToggleBtn" onclick="toggleMute()" class="p-2 rounded-lg bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-cyan-400 text-xs font-semibold flex items-center gap-1.5 transition">
-        <span id="audioIcon">🔊</span> <span class="hidden sm:inline">Audio</span>
-      </button>
-      <div id="connectionStatusBadge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span id="networkText">Live Mesh</span>
-      </div>
+    <div class="timer-badge" id="playerTimer">20</div>
+    <p>Select your answer immediately for maximum speed points:</p>
+    <div class="btn-grid">
+      <button class="opt-btn opt-A" onclick="submitPlayerAnswer(0)">A</button>
+      <button class="opt-btn opt-B" onclick="submitPlayerAnswer(1)">B</button>
+      <button class="opt-btn opt-C" onclick="submitPlayerAnswer(2)">C</button>
+      <button class="opt-btn opt-D" onclick="submitPlayerAnswer(3)">D</button>
     </div>
-  </header>
+    <p id="playerStatus" style="margin-top: 15px; color: var(--accent); font-weight: bold;"></p>
+  </div>
 
-  <!-- MAIN VIEWPORT CONTAINER -->
-  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center items-center relative">
+  <!-- HOST LOBBY -->
+  <div id="screenHostLobby" class="screen card">
+    <h1>HOST CONTROLS</h1>
+    <p>Scan QR code or use the link on participating phones.</p>
+    <div id="qrcode"></div>
+    <h3>Connected Teams (<span id="teamCount">0</span>)</h3>
+    <div class="roster" id="rosterList"></div>
+    <button onclick="beginQuiz()" style="background: var(--correct); font-size: 18px; margin-top: 15px;">START QUIZ ARENA</button>
+  </div>
 
-    <!-- 1. MODE SELECTION SCREEN (Initial State) -->
-    <section id="roleSelectScreen" class="w-full max-w-xl text-center space-y-6">
-      <div class="glass-panel p-8 sm:p-10 rounded-3xl border border-cyan-500/30 shadow-2xl relative overflow-hidden">
-        <div class="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <!-- HOST GAME SCREEN (Timer, Full Question, Correct Key & Live Submission Feed) -->
+  <div id="screenHostGame" class="screen card" style="max-width: 650px;">
+    <div style="display: flex; justify-content: space-between; color: var(--muted);">
+      <span id="hostQIndex">Question 1 / 20</span>
+      <span id="hostSubmittedCount">Answered: 0</span>
+    </div>
+    <div class="timer-badge" id="hostTimer">20</div>
+    <h2 id="hostQuestionText" style="margin: 10px 0 15px;">Question Text</h2>
+    
+    <ul class="host-answers" id="hostOptionsList"></ul>
+    
+    <div style="text-align: left; background: #0f172a; padding: 12px; border-radius: 8px;">
+      <div style="font-size: 13px; color: var(--muted); margin-bottom: 6px;">Live Submissions:</div>
+      <div id="liveSubmissions" style="font-size: 14px; min-height: 24px;">Waiting for team responses...</div>
+    </div>
+  </div>
 
-        <span class="px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 inline-block mb-3">
-          Symposium Technical Quiz
-        </span>
-        <h2 class="text-3xl sm:text-4xl font-orbitron font-extrabold text-white mb-2">Select Device Role</h2>
-        <p class="text-slate-400 text-sm mb-8">Choose whether this phone/screen is the central Server Host or a competing Team device.</p>
+  <!-- LEADERBOARD & TIMINGS SCREEN -->
+  <div id="screenLeaderboard" class="screen card" style="max-width: 600px;">
+    <h2 id="lbTitle">Standings & Speed Timings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Team</th>
+          <th>Last Response Time</th>
+          <th>Total Score</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboardBody"></tbody>
+    </table>
+    <div id="hostNextArea" style="display: none; margin-top: 20px;">
+      <button onclick="advanceToNextQuestion()" style="background: var(--accent); color: black;">Next Question ➔</button>
+    </div>
+    <p id="playerWaitNotice" style="display: none; margin-top: 20px;">Waiting for host to load next question...</p>
+  </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Host Card Button -->
-          <button onclick="initHostMode()" class="cyber-btn glass-panel p-6 rounded-2xl border border-purple-500/40 hover:border-purple-400 bg-gradient-to-b from-purple-900/20 to-slate-900/60 text-left group">
-            <div class="text-3xl mb-3 group-hover:scale-110 transition-transform">🖥️</div>
-            <h3 class="font-orbitron font-bold text-lg text-white group-hover:text-purple-300">Host / Projector</h3>
-            <p class="text-xs text-slate-400 mt-1">Displays Room PIN, QR Code, master 20s countdown & live leaderboard.</p>
-          </button>
-
-          <!-- Player Card Button -->
-          <button onclick="initPlayerMode()" class="cyber-btn glass-panel p-6 rounded-2xl border border-cyan-500/40 hover:border-cyan-400 bg-gradient-to-b from-cyan-900/20 to-slate-900/60 text-left group">
-            <div class="text-3xl mb-3 group-hover:scale-110 transition-transform">📱</div>
-            <h3 class="font-orbitron font-bold text-lg text-white group-hover:text-cyan-300">Team / Player</h3>
-            <p class="text-xs text-slate-400 mt-1">Connect with Team Name and mascot to buzz in within 20 seconds.</p>
-          </button>
-        </div>
-
-        <div class="mt-6 pt-4 border-t border-slate-700/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
-          <span>Testing locally? Open in another tab/window!</span>
-          <button onclick="launchSoloDemo()" class="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-4">
-            🚀 Quick Solo Simulator
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. HOST LOBBY SCREEN -->
-    <section id="hostLobbyScreen" class="w-full max-w-4xl hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        <!-- Room PIN & QR Card -->
-        <div class="md:col-span-5 glass-panel p-6 rounded-3xl border border-cyan-500/30 flex flex-col items-center text-center justify-between">
-          <div class="w-full">
-            <span class="text-xs font-bold uppercase tracking-widest text-slate-400">Join Instructions</span>
-            <div class="mt-3 p-4 bg-slate-900/80 rounded-2xl border border-cyan-400/40 shadow-inner">
-              <span class="text-xs text-cyan-300 block mb-1">ROOM PIN CODE</span>
-              <div id="hostPinDisplay" class="font-orbitron text-3xl font-black text-cyan-300 tracking-wider">
-                SYNAPSE26
-              </div>
-            </div>
-          </div>
-
-          <div class="my-5 p-3 bg-white rounded-2xl shadow-xl flex items-center justify-center" id="hostQrContainer">
-            <!-- QR Code injected here -->
-          </div>
-
-          <div class="text-xs text-slate-400">
-            Scan with phone camera or visit this URL to buzz in!
-          </div>
-        </div>
-
-        <!-- Connected Teams Roster -->
-        <div class="md:col-span-7 glass-panel p-6 rounded-3xl border border-purple-500/30 flex flex-col justify-between">
-          <div>
-            <div class="flex justify-between items-center mb-4">
-              <div class="flex items-center gap-2">
-                <span class="text-lg font-orbitron font-bold text-white">Teams Joined</span>
-                <span id="hostTeamCountBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/30 text-purple-300 border border-purple-500/40">0</span>
-              </div>
-              <button onclick="addSimulatedTeam()" class="text-xs font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-950/40 border border-cyan-700/50 px-3 py-1 rounded-lg">
-                + Add Bot Team
-              </button>
-            </div>
-
-            <div id="hostLobbyRoster" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto p-1 pr-2">
-              <div class="col-span-full py-8 text-center text-slate-500 text-sm italic">
-                Waiting for teams to connect...
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-slate-700/50">
-            <button id="startQuizBtn" onclick="hostStartQuiz()" disabled class="cyber-btn w-full py-4 rounded-2xl font-orbitron font-black text-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-wider shadow-lg shadow-emerald-500/20">
-              Start Round 2
-            </button>
-            <p class="text-[11px] text-center text-slate-400 mt-2">Connect at least 1 team to unlock.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. PLAYER REGISTRATION / JOIN SCREEN -->
-    <section id="playerJoinScreen" class="w-full max-w-md hidden">
-      <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-cyan-500/30 shadow-2xl">
-        <h2 class="text-2xl font-orbitron font-extrabold text-white text-center mb-1">Join Symposium Arena</h2>
-        <p class="text-xs text-slate-400 text-center mb-6">Enter team details to join Round 2</p>
-
-        <form id="playerJoinForm" onsubmit="event.preventDefault(); playerJoinGame();" class="space-y-4">
-          <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Game PIN</label>
-            <input type="text" id="playerPinInput" value="SYNAPSE26" class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-cyan-300 font-orbitron font-bold text-center tracking-widest focus:border-cyan-400 focus:outline-none uppercase" required>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Team Name</label>
-            <input type="text" id="playerTeamNameInput" maxlength="18" placeholder="e.g. CyberKnights" class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-white font-semibold focus:border-cyan-400 focus:outline-none" required>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">Team Mascot Badge</label>
-            <div class="grid grid-cols-4 gap-2" id="avatarPickerGrid">
-              <!-- Mascots injected dynamically -->
-            </div>
-          </div>
-
-          <button type="submit" class="cyber-btn w-full mt-4 py-3.5 rounded-xl font-orbitron font-bold text-base bg-gradient-to-r from-cyan-400 to-purple-500 text-slate-950 uppercase tracking-wider shadow-lg">
-            Connect to Server
-          </button>
-        </form>
-      </div>
-    </section>
-
-    <!-- 4. PLAYER WAITING SCREEN -->
-    <section id="playerWaitingScreen" class="w-full max-w-md text-center hidden">
-      <div class="glass-panel p-8 rounded-3xl border border-purple-500/30 shadow-2xl">
-        <div id="playerBadgeDisplay" class="text-6xl mb-4 animate-bounce">⚡</div>
-        <h3 id="playerConfirmedTeamName" class="font-orbitron font-extrabold text-2xl text-white">Team Alpha</h3>
-        <p class="text-xs text-purple-300 mt-1 uppercase tracking-widest font-semibold">Ready for Battle</p>
-        
-        <div class="my-6 p-4 rounded-2xl bg-slate-900/70 border border-slate-800">
-          <div class="text-xs text-slate-400 mb-2">Connected to Host:</div>
-          <span class="font-orbitron font-bold text-cyan-400 tracking-wider text-sm">SYNAPSE-MASTER-NODE</span>
-        </div>
-
-        <div class="flex items-center justify-center space-x-2 text-slate-400 text-xs">
-          <div class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
-          <span>Waiting for host to launch the questions...</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. ACTIVE QUIZ QUESTION SCREEN (Unified for Host & Player) -->
-    <section id="activeQuizScreen" class="w-full max-w-4xl hidden space-y-4">
-      
-      <!-- Top Status Bar: Question Progress, Category, 20s Circular Timer -->
-      <div class="glass-panel p-4 rounded-2xl border border-slate-700/60 flex items-center justify-between">
-        <div>
-          <div class="flex items-center gap-2">
-            <span id="questionCategoryTag" class="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              Data Structures
-            </span>
-            <span id="questionIndexTag" class="text-xs font-semibold text-slate-400">
-              Question 1 of 20
-            </span>
-          </div>
-          <div class="text-[11px] text-cyan-400/90 font-medium mt-1">20-Second Speed Timer • +500 Fast Bonus</div>
-        </div>
-
-        <!-- Circular 20-Second Timer -->
-        <div class="relative w-16 h-16 flex items-center justify-center">
-          <svg class="w-16 h-16">
-            <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="5" class="text-slate-800" fill="transparent" />
-            <circle id="timerRing" cx="32" cy="32" r="28" stroke="currentColor" stroke-width="5" class="text-cyan-400 timer-ring-circle" fill="transparent" stroke-dasharray="175.92" stroke-dashoffset="0" stroke-linecap="round" />
-          </svg>
-          <span id="timerText" class="absolute font-orbitron font-black text-xl text-white">20</span>
-        </div>
-      </div>
-
-      <!-- Question Card -->
-      <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-cyan-500/20 shadow-2xl relative">
-        <h2 id="questionPrompt" class="text-lg sm:text-2xl font-bold text-white text-center sm:text-left leading-relaxed">
-          Loading question prompt...
-        </h2>
-      </div>
-
-      <!-- 4 Option Buttons Grid -->
-      <div id="optionsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-        <!-- Injected via JavaScript -->
-      </div>
-
-      <!-- Player Feedback Notification -->
-      <div id="playerBuzzNotification" class="hidden glass-panel p-3.5 rounded-xl border border-cyan-400/30 text-center animate-fade-in">
-        <span id="buzzNotificationText" class="text-sm font-semibold text-cyan-300">Answer recorded! Waiting for time expiration...</span>
-      </div>
-
-      <!-- Host Answers Tracker bar (shown only on host) -->
-      <div id="hostAnswerTracker" class="hidden glass-panel p-3 rounded-xl border border-slate-700 text-xs flex justify-between items-center text-slate-400">
-        <span id="hostAnswerStats">Answers received: 0 / 0</span>
-        <span class="text-cyan-400 font-semibold">Auto-advancing upon timer end</span>
-      </div>
-    </section>
-
-    <!-- 6. ROUND TRANSITION / ANSWER REVEAL SCREEN (4 Seconds) -->
-    <section id="roundResultScreen" class="w-full max-w-2xl hidden space-y-4 text-center">
-      <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/30 shadow-2xl">
-        <span id="resultRoundBadge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 inline-block mb-3">
-          Time's Up!
-        </span>
-
-        <h3 id="resultOutcomeTitle" class="text-2xl sm:text-3xl font-orbitron font-extrabold text-white mb-2">
-          Correct Answer Revealed
-        </h3>
-
-        <div id="correctAnswerBox" class="p-4 my-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 font-bold text-lg">
-          Option Text
-        </div>
-
-        <p id="playerScoreAwardText" class="text-sm font-semibold text-cyan-300 mb-6">
-          Speed bonus added!
-        </p>
-
-        <!-- Mini Leaderboard -->
-        <div class="text-left">
-          <h4 class="text-xs font-orbitron font-bold uppercase tracking-wider text-slate-400 mb-2">Current Top Standings</h4>
-          <div id="interimLeaderboard" class="space-y-2">
-            <!-- Dynamic rows -->
-          </div>
-        </div>
-
-        <div class="mt-6 flex items-center justify-center space-x-2 text-xs text-slate-400">
-          <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-          <span>Next question in <strong id="nextCountdownSec" class="text-white font-orbitron text-sm">4</strong>s...</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- 7. FINAL WINNER PODIUM SCREEN -->
-    <section id="finalPodiumScreen" class="w-full max-w-3xl hidden text-center space-y-6">
-      <div class="glass-panel p-8 sm:p-10 rounded-3xl border border-yellow-500/30 shadow-2xl relative overflow-hidden">
-        <span class="px-4 py-1.5 rounded-full text-xs font-orbitron font-extrabold uppercase tracking-widest bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 inline-block mb-4">
-          🏆 Synapse Round 2 Winners
-        </span>
-        <h2 class="text-3xl sm:text-5xl font-orbitron font-black text-white mb-8 tracking-wider">
-          CHAMPIONS ARENA
-        </h2>
-
-        <!-- Podium Layout -->
-        <div id="podiumContainer" class="flex flex-col sm:flex-row items-end justify-center gap-4 sm:gap-6 my-8 px-4">
-          <!-- Dynamically filled with top 3 teams -->
-        </div>
-
-        <!-- Full Final Table -->
-        <div class="mt-8 text-left">
-          <h4 class="text-xs font-orbitron font-bold uppercase tracking-wider text-slate-400 mb-3">All Team Final Scores</h4>
-          <div id="finalRankingsList" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
-        </div>
-
-        <div class="mt-8 pt-4 border-t border-slate-700/50 flex justify-center gap-4">
-          <button onclick="resetEntireTournament()" class="cyber-btn px-6 py-3 rounded-xl font-orbitron font-bold text-sm bg-slate-800 hover:bg-slate-700 text-white border border-slate-600">
-            ↺ Restart Tournament
-          </button>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Global Footer -->
-  <footer class="w-full text-center py-3 text-xs text-slate-500 font-medium">
-    SYNAPSE Technical Symposium • Speed Round Engine • Fast Response System
-  </footer>
-
-  <!-- APPLICATION LOGIC -->
   <script>
-    /* =====================================================================
-       1. 20 CURATED TECHNICAL QUESTIONS (DSA, OS, NETWORKS, GIT, AI, CLOUD)
-       ===================================================================== */
-    const QUIZ_QUESTIONS = [
-      {
-        id: 1,
-        category: "Data Structures",
-        question: "Which data structure follows the Last-In, First-Out (LIFO) operational principle?",
-        options: ["Queue", "Stack", "Binary Heap", "Doubly Linked List"],
-        correct: 1
-      },
-      {
-        id: 2,
-        category: "Algorithms",
-        question: "What is the average time complexity of searching in a balanced Binary Search Tree (AVL / Red-Black)?",
-        options: ["O(1)", "O(n)", "O(log n)", "O(n log n)"],
-        correct: 2
-      },
-      {
-        id: 3,
-        category: "Computer Networks",
-        question: "Which standard HTTP status code signifies that the requested resource was NOT found on the server?",
-        options: ["403", "500", "404", "301"],
-        correct: 2
-      },
-      {
-        id: 4,
-        category: "Computer Networks",
-        question: "Which OSI model layer manages end-to-end transport communication using TCP and UDP?",
-        options: ["Network Layer", "Transport Layer", "Session Layer", "Data Link Layer"],
-        correct: 1
-      },
-      {
-        id: 5,
-        category: "Python & Core Tech",
-        question: "In Python, which of the following standard built-in data collections is strictly immutable?",
-        options: ["List", "Dictionary", "Set", "Tuple"],
-        correct: 3
-      },
-      {
-        id: 6,
-        category: "Algorithms",
-        question: "Which sorting algorithm guarantees a worst-case time complexity of O(n log n)?",
-        options: ["Quick Sort", "Merge Sort", "Bubble Sort", "Insertion Sort"],
-        correct: 1
-      },
-      {
-        id: 7,
-        category: "Databases",
-        question: "In relational database transactions, what does the letter 'I' signify in the ACID properties?",
-        options: ["Integrity", "Isolation", "Iteration", "Idempotency"],
-        correct: 1
-      },
-      {
-        id: 8,
-        category: "Computer Architecture",
-        question: "Which CPU internal register holds the memory address of the next instruction to execute?",
-        options: ["Accumulator", "Program Counter (PC)", "Instruction Register", "Memory Data Register"],
-        correct: 1
-      },
-      {
-        id: 9,
-        category: "Web & CSS",
-        question: "Which CSS Flexbox property aligns items along the primary main axis of the container?",
-        options: ["align-items", "justify-content", "align-content", "flex-wrap"],
-        correct: 1
-      },
-      {
-        id: 10,
-        category: "Artificial Intelligence",
-        question: "What revolutionary mechanism was introduced in the 2017 Transformer paper 'Attention Is All You Need'?",
-        options: ["Convolutional Kernels", "Self-Attention", "Backpropagation", "Recurrent Gates"],
-        correct: 1
-      },
-      {
-        id: 11,
-        category: "Operating Systems",
-        question: "Which condition occurs when processes are blocked forever because each holds a lock the other needs?",
-        options: ["Deadlock", "Starvation", "Race Condition", "Thrashing"],
-        correct: 0
-      },
-      {
-        id: 12,
-        category: "Digital Logic",
-        question: "What is the decimal equivalent of the 4-bit binary representation '1101'?",
-        options: ["11", "12", "13", "15"],
-        correct: 2
-      },
-      {
-        id: 13,
-        category: "Version Control",
-        question: "In Git, which command permanently snapshots and commits currently staged changes to history?",
-        options: ["git push", "git stage", "git commit", "git stash"],
-        correct: 2
-      },
-      {
-        id: 14,
-        category: "Computer Networks",
-        question: "Which IPv4 address is universally reserved for the local loopback interface (localhost)?",
-        options: ["192.168.1.1", "127.0.0.1", "10.0.0.1", "255.255.255.0"],
-        correct: 1
-      },
-      {
-        id: 15,
-        category: "Computer Networks",
-        question: "What is the primary function performed by the Domain Name System (DNS)?",
-        options: ["Encrypting traffic", "Translating domain names to IP addresses", "Allocating MAC addresses", "Compressing HTTP packets"],
-        correct: 1
-      },
-      {
-        id: 16,
-        category: "Cybersecurity",
-        question: "Which of the following encryption algorithms is an asymmetric public-key cryptosystem?",
-        options: ["AES", "DES", "RSA", "Blowfish"],
-        correct: 2
-      },
-      {
-        id: 17,
-        category: "JavaScript",
-        question: "Which JavaScript keyword defines a block-scoped variable that cannot be reassigned?",
-        options: ["var", "let", "const", "def"],
-        correct: 2
-      },
-      {
-        id: 18,
-        category: "Bit Manipulation",
-        question: "What is the integer result of the bitwise AND operation: 5 & 3 (binary 101 & 011)?",
-        options: ["1", "2", "3", "7"],
-        correct: 0
-      },
-      {
-        id: 19,
-        category: "Hardware & Memory",
-        question: "Which ultra-fast volatile memory technology is used to build internal CPU L1/L2 caches?",
-        options: ["DRAM", "SRAM", "Flash ROM", "EEPROM"],
-        correct: 1
-      },
-      {
-        id: 20,
-        category: "SQL",
-        question: "Which SQL clause is used in combination with aggregate functions (COUNT, SUM) to group results?",
-        options: ["ORDER BY", "WHERE", "GROUP BY", "HAVING"],
-        correct: 2
-      }
+    // Configuration & Security Password
+    const HOST_PASSWORD = "synapse2026"; // <-- You can change your password here
+    const QUESTION_TIME = 20;
+    const channel = new BroadcastChannel('synapse_quiz_network');
+
+    const questions = [
+      { q: "What is the worst-case time complexity of QuickSort?", options: ["O(n log n)", "O(n²)", "O(n)", "O(log n)"], correct: 1 },
+      { q: "Which protocol operates at the Transport Layer providing reliable, connection-oriented delivery?", options: ["UDP", "IP", "TCP", "ICMP"], correct: 2 },
+      { q: "In Operating Systems, which condition does NOT cause a Deadlock?", options: ["Mutual Exclusion", "Preemption", "Circular Wait", "Hold and Wait"], correct: 1 },
+      { q: "Which data structure follows the LIFO principle?", options: ["Queue", "Stack", "Binary Search Tree", "Linked List"], correct: 1 },
+      { q: "Which normal form removes transitive functional dependency in databases?", options: ["1NF", "2NF", "3NF", "BCNF"], correct: 2 },
+      { q: "What is the size of an IPv6 address?", options: ["32 bits", "64 bits", "128 bits", "256 bits"], correct: 2 },
+      { q: "Which Python keyword prevents variable assignment modifications outside its scope?", options: ["static", "const", "global", "final"], correct: 2 },
+      { q: "In Git, which command safely records snapshots without altering existing branch pointer history?", options: ["git reset", "git revert", "git rebase", "git checkout"], correct: 1 },
+      { q: "Which algorithm is used for finding shortest paths in a weighted graph with non-negative edges?", options: ["Prim's", "Dijkstra's", "Kruskal's", "KMP"], correct: 1 },
+      { q: "What does the 'A' in ACID properties of DBMS represent?", options: ["Availability", "Atomicity", "Accuracy", "Authentication"], correct: 1 },
+      { q: "Which HTTP status code signifies 'Forbidden' access?", options: ["401", "403", "404", "500"], correct: 1 },
+      { q: "Which hardware registers store the next instruction memory address?", options: ["Accumulator", "Program Counter", "Instruction Register", "Memory Buffer Register"], correct: 1 },
+      { q: "What is the primary activation function used in standard Multi-Layer Perceptron hidden layers to prevent vanishing gradients?", options: ["Sigmoid", "Softmax", "ReLU", "Step"], correct: 2 },
+      { q: "Which sorting algorithm performs minimum number of memory swaps in worst case?", options: ["Selection Sort", "Bubble Sort", "Insertion Sort", "Merge Sort"], correct: 0 },
+      { q: "In cryptography, RSA is an example of what type of encryption?", options: ["Symmetric", "Asymmetric", "Hashing", "Stream Cipher"], correct: 1 },
+      { q: "Which memory allocation scheme causes external fragmentation?", options: ["Paging", "Segmentation", "Fixed Partitioning", "Virtual Memory"], correct: 1 },
+      { q: "In Linux, which command modifies read, write, and execute permissions of a file?", options: ["chown", "chmod", "chgrp", "touch"], correct: 1 },
+      { q: "What is the time complexity to access an element in a Hash Table in the average case?", options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correct: 0 },
+      { q: "Which CSS layout mechanism is natively optimized for 2-dimensional layouts?", options: ["Flexbox", "Grid", "Float", "Inline-Block"], correct: 1 },
+      { q: "In computer vision and deep learning, what does CNN stand for?", options: ["Central Neural Network", "Convolutional Neural Network", "Cascaded Node Network", "Continuous Numerical Node"], correct: 1 }
     ];
 
-    const TEAM_MASCOTS = ["⚡", "🤖", "🚀", "🧠", "🔥", "👾", "🛡️", "🐉", "🐺", "🦅", "💎", "🎯"];
-    const ROOM_CODE = "SYNAPSE26";
-    const QUESTION_TIME_LIMIT = 20; // 20 seconds authoritative speed timer
-    const TRANSITION_DELAY_SEC = 4; // 4 seconds review between questions
-
-    /* =====================================================================
-       2. WEB AUDIO API SYNTHESIZER (No external mp3 assets)
-       ===================================================================== */
-    let audioCtx = null;
-    let isMuted = false;
-
-    function getAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
-
-    function toggleMute() {
-      isMuted = !isMuted;
-      document.getElementById('audioIcon').innerText = isMuted ? '🔇' : '🔊';
-    }
-
-    const SFX = {
-      tick: () => {
-        if (isMuted) return;
-        try {
-          const ctx = getAudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(800, ctx.currentTime);
-          gain.gain.setValueAtTime(0.04, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.05);
-        } catch (e) {}
-      },
-      urgentTick: () => {
-        if (isMuted) return;
-        try {
-          const ctx = getAudioContext();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(1100, ctx.currentTime);
-          gain.gain.setValueAtTime(0.08, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.08);
-        } catch (e) {}
-      },
-      correct: () => {
-        if (isMuted) return;
-        try {
-          const ctx = getAudioContext();
-          const now = ctx.currentTime;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(523.25, now); // C5
-          osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.25); // C6
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(now + 0.3);
-        } catch (e) {}
-      },
-      wrong: () => {
-        if (isMuted) return;
-        try {
-          const ctx = getAudioContext();
-          const now = ctx.currentTime;
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(220, now); // A3
-          osc.frequency.linearRampToValueAtTime(110, now + 0.28); // A2
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(now + 0.3);
-        } catch (e) {}
-      },
-      victory: () => {
-        if (isMuted) return;
-        try {
-          const ctx = getAudioContext();
-          const notes = [523.25, 659.25, 783.99, 1046.50];
-          notes.forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.12);
-            gain.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.12);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.3);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + i * 0.12);
-            osc.stop(ctx.currentTime + i * 0.12 + 0.35);
-          });
-        } catch (e) {}
-      }
-    };
-
-    /* =====================================================================
-       3. MULTIPLAYER BUS: BroadcastChannel + LocalStorage Sync
-       ===================================================================== */
-    const BUS_CHANNEL = 'SYNAPSE_SPEED_QUIZ_MESH_2026';
-    let broadcastBus = null;
-
-    if (window.BroadcastChannel) {
-      broadcastBus = new BroadcastChannel(BUS_CHANNEL);
-      broadcastBus.onmessage = (event) => handleIncomingMessage(event.data);
-    }
-
-    // Fallback sync using LocalStorage storage events
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'SYNAPSE_STORAGE_BUS' && e.newValue) {
-        try {
-          const payload = JSON.parse(e.newValue);
-          handleIncomingMessage(payload);
-        } catch (err) {}
-      }
-    });
-
-    function broadcast(message) {
-      if (broadcastBus) {
-        broadcastBus.postMessage(message);
-      }
-      try {
-        localStorage.setItem('SYNAPSE_STORAGE_BUS', JSON.stringify({ ...message, _ts: Date.now() }));
-      } catch (e) {}
-    }
-
-    /* =====================================================================
-       4. GAME STATE (HOST & CLIENT PERSISTENCE)
-       ===================================================================== */
     let currentRole = null; // 'HOST' or 'PLAYER'
-    let myTeamId = null;
-    let myTeamName = "";
-    let myMascot = "⚡";
-    let selectedAnswerIdx = null;
-
+    let myTeam = { name: '', avatar: '', score: 0, lastTime: '-' };
     let gameState = {
-      status: 'LOBBY', // LOBBY, QUESTION, BREAKDOWN, FINISHED
-      currentQuestionIndex: 0,
-      timerSeconds: QUESTION_TIME_LIMIT,
-      teams: {}, // { id: { id, name, mascot, score, hasAnswered, lastAnswerTime, lastIsCorrect, roundPoints } }
-      questionStartTime: 0
+      qIndex: -1,
+      timer: QUESTION_TIME,
+      submissions: {}
     };
 
     let timerInterval = null;
-    let transitionTimeout = null;
 
-    /* =====================================================================
-       5. INITIALIZATION & NAVIGATION
-       ===================================================================== */
-    function showSection(sectionId) {
-      const screens = [
-        'roleSelectScreen',
-        'hostLobbyScreen',
-        'playerJoinScreen',
-        'playerWaitingScreen',
-        'activeQuizScreen',
-        'roundResultScreen',
-        'finalPodiumScreen'
-      ];
-      screens.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.toggle('hidden', id !== sectionId);
-      });
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
     }
 
-    function initHostMode() {
+    // --- PASSWORD AUTHENTICATION ---
+    function openHostPasswordModal() {
+      document.getElementById('hostPasswordInput').value = '';
+      document.getElementById('authError').innerText = '';
+      showScreen('screenHostAuth');
+    }
+
+    function verifyHostPassword() {
+      const input = document.getElementById('hostPasswordInput').value;
+      if (input === HOST_PASSWORD) {
+        startAsHost();
+      } else {
+        document.getElementById('authError').innerText = 'Incorrect host password! Access denied.';
+      }
+    }
+
+    // --- HOST INITIALIZATION ---
+    function startAsHost() {
       currentRole = 'HOST';
-      showSection('hostLobbyScreen');
-      renderQrCode();
-      updateHostLobbyUI();
-      document.getElementById('networkText').innerText = "Host Node";
-    }
-
-    function initPlayerMode() {
-      currentRole = 'PLAYER';
-      showSection('playerJoinScreen');
-      renderAvatarPicker();
-      document.getElementById('networkText').innerText = "Team Node";
-    }
-
-    function renderQrCode() {
-      const container = document.getElementById('hostQrContainer');
-      container.innerHTML = '';
-      const currentUrl = window.location.href.split('#')[0];
-      try {
-        new QRCode(container, {
-          text: currentUrl,
-          width: 140,
-          height: 140,
-          colorDark: "#080d1a",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.M
-        });
-      } catch (e) {
-        container.innerHTML = '<span class="text-xs text-slate-800 font-bold p-2">QR Code Ready</span>';
-      }
-    }
-
-    function renderAvatarPicker() {
-      const container = document.getElementById('avatarPickerGrid');
-      container.innerHTML = '';
-      TEAM_MASCOTS.forEach((mascot, i) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `p-2.5 text-2xl rounded-xl border transition ${i === 0 ? 'border-cyan-400 bg-cyan-950/60' : 'border-slate-700 bg-slate-900/60 hover:border-slate-500'}`;
-        btn.innerText = mascot;
-        btn.onclick = () => {
-          document.querySelectorAll('#avatarPickerGrid button').forEach(b => {
-            b.classList.remove('border-cyan-400', 'bg-cyan-950/60');
-            b.classList.add('border-slate-700', 'bg-slate-900/60');
-          });
-          btn.classList.add('border-cyan-400', 'bg-cyan-950/60');
-          myMascot = mascot;
-        };
-        container.appendChild(btn);
+      showScreen('screenHostLobby');
+      document.getElementById('qrcode').innerHTML = '';
+      new QRCode(document.getElementById("qrcode"), {
+        text: window.location.href,
+        width: 140,
+        height: 140
       });
+      localStorage.setItem('synapse_teams', JSON.stringify({}));
     }
 
-    /* =====================================================================
-       6. PLAYER JOIN & SIMULATION LOGIC
-       ===================================================================== */
-    function playerJoinGame() {
-      const pin = document.getElementById('playerPinInput').value.trim().toUpperCase();
-      const teamName = document.getElementById('playerTeamNameInput').value.trim();
-
-      if (pin !== ROOM_CODE) {
-        alert("Invalid PIN! The Synapse Round 2 PIN is: " + ROOM_CODE);
-        return;
-      }
-      if (!teamName) {
-        alert("Please enter a valid Team Name!");
-        return;
-      }
-
-      myTeamId = 'TEAM_' + Math.random().toString(36).substring(2, 9);
-      myTeamName = teamName;
-
-      document.getElementById('playerBadgeDisplay').innerText = myMascot;
-      document.getElementById('playerConfirmedTeamName').innerText = myTeamName;
-      showSection('playerWaitingScreen');
-
-      // Send join event across the bus
-      broadcast({
-        type: 'TEAM_JOIN',
-        team: {
-          id: myTeamId,
-          name: myTeamName,
-          mascot: myMascot,
-          score: 0,
-          hasAnswered: false,
-          lastAnswerTime: 0,
-          lastIsCorrect: false,
-          roundPoints: 0
-        }
-      });
+    function beginQuiz() {
+      gameState.qIndex = 0;
+      loadHostQuestion();
     }
 
-    function addSimulatedTeam() {
-      const botNames = ["NeuralNet", "BitShifters", "BinaryBeasts", "QuantumCoders", "CodeDynasty", "KernelPanics", "CyberKnights", "Algoriddims"];
-      const existingNames = Object.values(gameState.teams).map(t => t.name);
-      const available = botNames.filter(n => !existingNames.includes(n));
-      const chosenName = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : "Team_" + Math.floor(Math.random() * 900 + 100);
-      const chosenMascot = TEAM_MASCOTS[Math.floor(Math.random() * TEAM_MASCOTS.length)];
+    function loadHostQuestion() {
+      const q = questions[gameState.qIndex];
+      gameState.timer = QUESTION_TIME;
+      gameState.submissions = {};
 
-      const botId = 'SIM_' + Math.random().toString(36).substring(2, 8);
-      const newTeam = {
-        id: botId,
-        name: chosenName,
-        mascot: chosenMascot,
-        score: 0,
-        hasAnswered: false,
-        lastAnswerTime: 0,
-        lastIsCorrect: false,
-        roundPoints: 0,
-        isSimulated: true
-      };
+      document.getElementById('hostQIndex').innerText = `Question ${gameState.qIndex + 1} / ${questions.length}`;
+      document.getElementById('hostQuestionText').innerText = q.q;
+      document.getElementById('hostSubmittedCount').innerText = `Answered: 0`;
+      document.getElementById('liveSubmissions').innerHTML = '<span style="color:#64748b">Listening for answers...</span>';
 
-      gameState.teams[botId] = newTeam;
-      updateHostLobbyUI();
-      broadcast({ type: 'SYNC_STATE', state: gameState });
-    }
-
-    function launchSoloDemo() {
-      initHostMode();
-      // Auto-add 3 simulated challenger teams for immediate testing
-      setTimeout(() => addSimulatedTeam(), 150);
-      setTimeout(() => addSimulatedTeam(), 300);
-      setTimeout(() => addSimulatedTeam(), 450);
-    }
-
-    function updateHostLobbyUI() {
-      const rosterContainer = document.getElementById('hostLobbyRoster');
-      const countBadge = document.getElementById('hostTeamCountBadge');
-      const startBtn = document.getElementById('startQuizBtn');
-      const teams = Object.values(gameState.teams);
-
-      countBadge.innerText = teams.length;
-      startBtn.disabled = teams.length === 0;
-
-      if (teams.length === 0) {
-        rosterContainer.innerHTML = `
-          <div class="col-span-full py-8 text-center text-slate-500 text-sm italic">
-            Waiting for teams to connect...
-          </div>`;
-        return;
-      }
-
-      rosterContainer.innerHTML = teams.map(team => `
-        <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700 flex items-center space-x-2.5 animate-fade-in shadow">
-          <span class="text-xl p-1 bg-slate-800 rounded-lg">${team.mascot}</span>
-          <span class="font-bold text-xs text-slate-200 truncate">${team.name}</span>
-        </div>
-      `).join('');
-    }
-
-    /* =====================================================================
-       7. HOST ENGINE: 20-SECOND AUTHORITATIVE TIMER & TRANSITIONS
-       ===================================================================== */
-    function hostStartQuiz() {
-      if (currentRole !== 'HOST') return;
-      gameState.currentQuestionIndex = 0;
-      Object.values(gameState.teams).forEach(t => { t.score = 0; });
-      startQuestionRound(0);
-    }
-
-    function startQuestionRound(questionIndex) {
-      gameState.status = 'QUESTION';
-      gameState.currentQuestionIndex = questionIndex;
-      gameState.timerSeconds = QUESTION_TIME_LIMIT;
-      gameState.questionStartTime = Date.now();
-      selectedAnswerIdx = null;
-
-      // Reset round flags
-      Object.values(gameState.teams).forEach(t => {
-        t.hasAnswered = false;
-        t.lastAnswerTime = 0;
-        t.lastIsCorrect = false;
-        t.roundPoints = 0;
+      const list = document.getElementById('hostOptionsList');
+      list.innerHTML = '';
+      q.options.forEach((opt, idx) => {
+        const li = document.createElement('li');
+        li.id = `hostOpt_${idx}`;
+        li.innerText = `${String.fromCharCode(65 + idx)}: ${opt}`;
+        list.appendChild(li);
       });
 
-      broadcast({
-        type: 'NEW_QUESTION',
-        state: gameState
+      showScreen('screenHostGame');
+
+      channel.postMessage({
+        action: 'START_QUESTION',
+        qIndex: gameState.qIndex,
+        duration: QUESTION_TIME
       });
 
-      renderQuestionUI();
+      startHostTimer();
+    }
 
-      // Clear any running timers
-      if (timerInterval) clearInterval(timerInterval);
+    function startHostTimer() {
+      clearInterval(timerInterval);
+      const timerEl = document.getElementById('hostTimer');
+      timerEl.classList.remove('timer-urgent');
 
-      // Trigger 20-second Authoritative Interval
       timerInterval = setInterval(() => {
-        gameState.timerSeconds--;
+        gameState.timer--;
+        timerEl.innerText = gameState.timer;
+        if (gameState.timer <= 5) timerEl.classList.add('timer-urgent');
 
-        // Simulated bot answering
-        if (currentRole === 'HOST') {
-          simulateBotAnswers();
-        }
+        channel.postMessage({ action: 'TIMER_TICK', timer: gameState.timer });
 
-        // Broadcast tick to all connected tabs
-        broadcast({
-          type: 'TIMER_TICK',
-          seconds: gameState.timerSeconds
-        });
-
-        updateTimerRing(gameState.timerSeconds);
-
-        if (gameState.timerSeconds <= 5 && gameState.timerSeconds > 0) {
-          SFX.urgentTick();
-        } else if (gameState.timerSeconds > 0) {
-          SFX.tick();
-        }
-
-        // Automatic lock & transition when time hits 0
-        if (gameState.timerSeconds <= 0) {
+        if (gameState.timer <= 0) {
           clearInterval(timerInterval);
-          hostTriggerRoundEnd();
+          finishQuestionRound();
         }
       }, 1000);
     }
 
-    function simulateBotAnswers() {
-      const q = QUIZ_QUESTIONS[gameState.currentQuestionIndex];
-      Object.values(gameState.teams).forEach(t => {
-        if (t.isSimulated && !t.hasAnswered) {
-          // 85% chance a bot answers during the 20 seconds
-          if (Math.random() < 0.22) {
-            t.hasAnswered = true;
-            const timeTaken = (Date.now() - gameState.questionStartTime) / 1000;
-            const isCorrect = Math.random() < 0.75; // 75% accuracy for bots
-            const selectedOpt = isCorrect ? q.correct : (q.correct + 1) % 4;
-            t.lastIsCorrect = isCorrect;
-            
-            if (isCorrect) {
-              const speedBonus = Math.round(Math.max(0, (QUESTION_TIME_LIMIT - timeTaken) / QUESTION_TIME_LIMIT * 500));
-              t.roundPoints = 500 + speedBonus;
-              t.score += t.roundPoints;
-            } else {
-              t.roundPoints = 0;
-            }
-          }
-        }
-      });
-      updateHostAnswerStats();
+    function finishQuestionRound() {
+      const q = questions[gameState.qIndex];
+      const correctLi = document.getElementById(`hostOpt_${q.correct}`);
+      if (correctLi) correctLi.classList.add('correct-highlight');
+
+      channel.postMessage({ action: 'ROUND_ENDED', correctIdx: q.correct });
+
+      setTimeout(() => {
+        displayLeaderboard();
+      }, 2500);
     }
 
-    function hostTriggerRoundEnd() {
-      gameState.status = 'BREAKDOWN';
-      const q = QUIZ_QUESTIONS[gameState.currentQuestionIndex];
+    function displayLeaderboard() {
+      showScreen('screenLeaderboard');
+      const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
+      const sorted = Object.values(teams).sort((a, b) => b.score - a.score);
 
-      // Evaluate any unanswered teams
-      Object.values(gameState.teams).forEach(t => {
-        if (!t.hasAnswered) {
-          t.roundPoints = 0;
-          t.lastIsCorrect = false;
-        }
-      });
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = sorted.map((t, i) => `
+        <tr>
+          <td><strong>#${i + 1}</strong></td>
+          <td>${t.avatar} ${t.name}</td>
+          <td>${t.lastTime || '-'}</td>
+          <td style="color:var(--accent); font-weight:bold;">${t.score}</td>
+        </tr>
+      `).join('');
 
-      broadcast({
-        type: 'ROUND_ENDED',
-        correctOption: q.correct,
-        state: gameState
-      });
-
-      showRoundBreakdown(q.correct);
-
-      // Automatically transition to next question after 4 seconds
-      let remainingBreakdownSec = TRANSITION_DELAY_SEC;
-      const countEl = document.getElementById('nextCountdownSec');
-      if (countEl) countEl.innerText = remainingBreakdownSec;
-
-      const countdownInterval = setInterval(() => {
-        remainingBreakdownSec--;
-        if (countEl) countEl.innerText = remainingBreakdownSec;
-        if (remainingBreakdownSec <= 0) {
-          clearInterval(countdownInterval);
-          if (currentRole === 'HOST') {
-            const nextIdx = gameState.currentQuestionIndex + 1;
-            if (nextIdx < QUIZ_QUESTIONS.length) {
-              startQuestionRound(nextIdx);
-            } else {
-              hostEndTournament();
-            }
-          }
-        }
-      }, 1000);
-    }
-
-    function hostEndTournament() {
-      gameState.status = 'FINISHED';
-      broadcast({
-        type: 'TOURNAMENT_FINISHED',
-        state: gameState
-      });
-      showFinalPodium();
-    }
-
-    /* =====================================================================
-       8. UI RENDERING & QUESTION MANAGEMENT
-       ===================================================================== */
-    function renderQuestionUI() {
-      showSection('activeQuizScreen');
-      const q = QUIZ_QUESTIONS[gameState.currentQuestionIndex];
-
-      document.getElementById('questionCategoryTag').innerText = q.category;
-      document.getElementById('questionIndexTag').innerText = `Question ${gameState.currentQuestionIndex + 1} of ${QUIZ_QUESTIONS.length}`;
-      document.getElementById('questionPrompt').innerText = q.question;
-      
-      const grid = document.getElementById('optionsGrid');
-      grid.innerHTML = '';
-
-      const letters = ['A', 'B', 'C', 'D'];
-      const colors = [
-        'hover:border-cyan-400 bg-slate-900/70',
-        'hover:border-purple-400 bg-slate-900/70',
-        'hover:border-pink-400 bg-slate-900/70',
-        'hover:border-emerald-400 bg-slate-900/70'
-      ];
-
-      q.options.forEach((optText, idx) => {
-        const btn = document.createElement('button');
-        btn.id = `optionBtn_${idx}`;
-        btn.className = `cyber-btn p-4 sm:p-5 rounded-2xl border border-slate-700/80 ${colors[idx]} text-left flex items-center space-x-3 transition group`;
-        btn.innerHTML = `
-          <span class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-600 flex items-center justify-center font-orbitron font-bold text-sm text-cyan-300 group-hover:scale-110 transition">
-            ${letters[idx]}
-          </span>
-          <span class="font-semibold text-sm sm:text-base text-slate-100 flex-1 leading-snug">${optText}</span>
-        `;
-
-        btn.onclick = () => submitPlayerAnswer(idx);
-        grid.appendChild(btn);
-      });
-
-      // Reset notifications
-      const notif = document.getElementById('playerBuzzNotification');
-      notif.classList.add('hidden');
-
-      // Host specific stats
-      const hostTracker = document.getElementById('hostAnswerTracker');
       if (currentRole === 'HOST') {
-        hostTracker.classList.remove('hidden');
-        updateHostAnswerStats();
-      } else {
-        hostTracker.classList.add('hidden');
-      }
-
-      updateTimerRing(QUESTION_TIME_LIMIT);
-    }
-
-    function updateTimerRing(seconds) {
-      const ring = document.getElementById('timerRing');
-      const text = document.getElementById('timerText');
-      if (!ring || !text) return;
-
-      text.innerText = Math.max(0, seconds);
-
-      // SVG Circle perimeter for r=28 is ~175.92
-      const totalCircumference = 175.92;
-      const progress = Math.max(0, seconds) / QUESTION_TIME_LIMIT;
-      const offset = totalCircumference - (progress * totalCircumference);
-      ring.style.strokeDashoffset = offset;
-
-      // Dynamic color & pulse warning when under 5s
-      if (seconds <= 5) {
-        ring.classList.remove('text-cyan-400');
-        ring.classList.add('text-rose-500');
-        text.classList.add('animate-pulseFast', 'text-rose-400');
-      } else {
-        ring.classList.remove('text-rose-500');
-        ring.classList.add('text-cyan-400');
-        text.classList.remove('animate-pulseFast', 'text-rose-400');
-      }
-    }
-
-    function submitPlayerAnswer(idx) {
-      if (selectedAnswerIdx !== null) return; // already locked
-      selectedAnswerIdx = idx;
-
-      // Lock buttons visually
-      const buttons = document.querySelectorAll('#optionsGrid button');
-      buttons.forEach((btn, i) => {
-        btn.disabled = true;
-        if (i === idx) {
-          btn.classList.add('border-cyan-400', 'bg-cyan-950/80', 'ring-2', 'ring-cyan-400');
-        } else {
-          btn.classList.add('opacity-40');
+        document.getElementById('hostNextArea').style.display = 'block';
+        document.getElementById('playerWaitNotice').style.display = 'none';
+        if (gameState.qIndex >= questions.length - 1) {
+          document.getElementById('lbTitle').innerText = "🏆 Final Synapse Round 2 Winners 🏆";
+          document.querySelector('#hostNextArea button').innerText = "Quiz Completed";
+          document.querySelector('#hostNextArea button').disabled = true;
         }
-      });
-
-      const notif = document.getElementById('playerBuzzNotification');
-      const notifText = document.getElementById('buzzNotificationText');
-      notif.classList.remove('hidden');
-      notifText.innerText = "Answer locked in! Waiting for round timer to expire...";
-
-      const timeTaken = (Date.now() - gameState.questionStartTime) / 1000;
-      const q = QUIZ_QUESTIONS[gameState.currentQuestionIndex];
-      const isCorrect = (idx === q.correct);
-
-      // Speed bonus scoring
-      let points = 0;
-      if (isCorrect) {
-        const speedBonus = Math.round(Math.max(0, (QUESTION_TIME_LIMIT - timeTaken) / QUESTION_TIME_LIMIT * 500));
-        points = 500 + speedBonus;
+      } else {
+        document.getElementById('hostNextArea').style.display = 'none';
+        document.getElementById('playerWaitNotice').style.display = 'block';
       }
+    }
 
-      broadcast({
-        type: 'ANSWER_SUBMITTED',
-        teamId: myTeamId,
-        isCorrect: isCorrect,
-        points: points,
-        answerIdx: idx
+    function advanceToNextQuestion() {
+      gameState.qIndex++;
+      if (gameState.qIndex < questions.length) {
+        loadHostQuestion();
+      }
+    }
+
+    // --- PLAYER ACTIONS ---
+    function joinAsTeam() {
+      const name = document.getElementById('teamName').value.trim();
+      const avatar = document.getElementById('teamAvatar').value;
+      if (!name) return alert('Please enter your Team Name');
+
+      currentRole = 'PLAYER';
+      myTeam = { name, avatar, score: 0, lastTime: '-' };
+      document.getElementById('playerGreeting').innerText = `${avatar} ${name}`;
+      showScreen('screenPlayerLobby');
+
+      channel.postMessage({ action: 'TEAM_JOINED', team: myTeam });
+    }
+
+    function submitPlayerAnswer(optionIdx) {
+      document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = true);
+      document.getElementById('playerStatus').innerText = "Answer submitted! Waiting for timer...";
+      
+      const timeTaken = ((QUESTION_TIME - gameState.timer) + (Math.random() * 0.3)).toFixed(2);
+      myTeam.lastTime = `${timeTaken}s`;
+
+      channel.postMessage({
+        action: 'SUBMIT_ANSWER',
+        teamName: myTeam.name,
+        option: optionIdx,
+        timeTaken: timeTaken
       });
     }
 
-    function updateHostAnswerStats() {
-      const teams = Object.values(gameState.teams);
-      const answered = teams.filter(t => t.hasAnswered).length;
-      const el = document.getElementById('hostAnswerStats');
-      if (el) el.innerText = `Answers received: ${answered} / ${teams.length}`;
-    }
+    // --- BROADCAST MESSAGING ---
+    channel.onmessage = (e) => {
+      const data = e.data;
 
-    /* =====================================================================
-       9. BREAKDOWN & ROUND LEADERBOARDS
-       ===================================================================== */
-    function showRoundBreakdown(correctOptionIdx) {
-      showSection('roundResultScreen');
-      const q = QUIZ_QUESTIONS[gameState.currentQuestionIndex];
-
-      document.getElementById('correctAnswerBox').innerText = `✓ ${['A','B','C','D'][correctOptionIdx]}: ${q.options[correctOptionIdx]}`;
-
-      // Personal team outcome notification
-      const outcomeTitle = document.getElementById('resultOutcomeTitle');
-      const scoreAwardText = document.getElementById('playerScoreAwardText');
-
-      if (currentRole === 'PLAYER' && myTeamId && gameState.teams[myTeamId]) {
-        const me = gameState.teams[myTeamId];
-        if (me.lastIsCorrect) {
-          SFX.correct();
-          outcomeTitle.innerHTML = `<span class="text-emerald-400">CORRECT! +${me.roundPoints} pts</span>`;
-          scoreAwardText.innerText = `Fast Buzz! Total Score: ${me.score} pts`;
-        } else {
-          SFX.wrong();
-          outcomeTitle.innerHTML = `<span class="text-rose-400">INCORRECT! +0 pts</span>`;
-          scoreAwardText.innerText = `Total Score: ${me.score} pts`;
-        }
-      } else {
-        outcomeTitle.innerText = "Round 2 Results";
-        scoreAwardText.innerText = `Question ${gameState.currentQuestionIndex + 1} completed.`;
+      if (data.action === 'TEAM_JOINED' && currentRole === 'HOST') {
+        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
+        teams[data.team.name] = data.team;
+        localStorage.setItem('synapse_teams', JSON.stringify(teams));
+        
+        document.getElementById('teamCount').innerText = Object.keys(teams).length;
+        document.getElementById('rosterList').innerHTML = Object.values(teams)
+          .map(t => `<div class="badge">${t.avatar} ${t.name}</div>`).join('');
       }
 
-      // Render top standings
-      const rankings = Object.values(gameState.teams).sort((a, b) => b.score - a.score).slice(0, 5);
-      const interimList = document.getElementById('interimLeaderboard');
-      interimList.innerHTML = rankings.map((team, idx) => `
-        <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/80 flex items-center justify-between text-xs sm:text-sm">
-          <div class="flex items-center space-x-2">
-            <span class="font-orbitron font-bold text-slate-400 w-5">#${idx + 1}</span>
-            <span class="text-lg">${team.mascot}</span>
-            <span class="font-semibold text-white ${team.id === myTeamId ? 'text-cyan-300 font-bold' : ''}">${team.name}</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            ${team.lastIsCorrect ? `<span class="text-emerald-400 font-bold">+${team.roundPoints}</span>` : '<span class="text-slate-500">+0</span>'}
-            <span class="font-orbitron font-bold text-cyan-400">${team.score} pts</span>
-          </div>
-        </div>
-      `).join('');
-    }
+      if (data.action === 'SUBMIT_ANSWER' && currentRole === 'HOST') {
+        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
+        const team = teams[data.teamName];
+        if (!team) return;
 
-    /* =====================================================================
-       10. FINAL PODIUM & CELEBRATION
-       ===================================================================== */
-    function showFinalPodium() {
-      showSection('finalPodiumScreen');
-      SFX.victory();
+        const isCorrect = data.option === questions[gameState.qIndex].correct;
+        const timeVal = parseFloat(data.timeTaken);
+        
+        if (isCorrect) {
+          const points = Math.round(500 + Math.max(0, (QUESTION_TIME - timeVal) / QUESTION_TIME * 500));
+          team.score += points;
+        }
+        team.lastTime = `${data.timeTaken}s (${isCorrect ? 'Correct' : 'Wrong'})`;
+        teams[data.teamName] = team;
+        localStorage.setItem('synapse_teams', JSON.stringify(teams));
 
-      // Launch Confetti Celebration
-      if (typeof confetti === 'function') {
-        confetti({
-          particleCount: 120,
-          spread: 80,
-          origin: { y: 0.6 }
-        });
+        const currentSubmissions = Object.keys(gameState.submissions).length + 1;
+        gameState.submissions[data.teamName] = true;
+        document.getElementById('hostSubmittedCount').innerText = `Answered: ${currentSubmissions}`;
+        
+        const feed = document.getElementById('liveSubmissions');
+        if (currentSubmissions === 1) feed.innerHTML = '';
+        feed.innerHTML += `<span class="badge" style="margin: 2px;">${team.avatar} ${team.name} (${data.timeTaken}s)</span> `;
+      }
+
+      if (data.action === 'START_QUESTION' && currentRole === 'PLAYER') {
+        gameState.timer = data.duration;
+        showScreen('screenPlayerGame');
+        document.getElementById('playerQIndex').innerText = `Question ${data.qIndex + 1} / ${questions.length}`;
+        document.getElementById('playerTimer').innerText = data.duration;
+        document.getElementById('playerStatus').innerText = '';
+        document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = false);
+      }
+
+      if (data.action === 'TIMER_TICK' && currentRole === 'PLAYER') {
+        gameState.timer = data.timer;
+        const timerEl = document.getElementById('playerTimer');
+        timerEl.innerText = data.timer;
+        if (data.timer <= 5) timerEl.classList.add('timer-urgent');
+      }
+
+      if (data.action === 'ROUND_ENDED' && currentRole === 'PLAYER') {
+        document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = true);
+        document.getElementById('playerStatus').innerText = "Time Up! Showing standings...";
         setTimeout(() => {
-          confetti({
-            particleCount: 80,
-            angle: 60,
-            spread: 55,
-            origin: { x: 0 }
-          });
-          confetti({
-            particleCount: 80,
-            angle: 120,
-            spread: 55,
-            origin: { x: 1 }
-          });
-        }, 400);
+          displayLeaderboard();
+        }, 2500);
       }
-
-      const sorted = Object.values(gameState.teams).sort((a, b) => b.score - a.score);
-      const podiumContainer = document.getElementById('podiumContainer');
-      podiumContainer.innerHTML = '';
-
-      // Podium order: [2nd, 1st, 3rd]
-      const first = sorted[0];
-      const second = sorted[1];
-      const third = sorted[2];
-
-      const renderPodiumPillar = (team, place, heightClass, bgGrad, borderCol) => {
-        if (!team) return '';
-        return `
-          <div class="flex flex-col items-center flex-1 max-w-[170px] animate-fade-in">
-            <span class="text-4xl mb-2">${team.mascot}</span>
-            <span class="font-orbitron font-bold text-xs text-white truncate max-w-full px-1">${team.name}</span>
-            <span class="font-orbitron font-bold text-xs text-cyan-300 mb-2">${team.score} pts</span>
-            <div class="w-full ${heightClass} ${bgGrad} ${borderCol} rounded-t-2xl flex flex-col items-center justify-center shadow-lg border-t-2 border-x-2">
-              <span class="font-orbitron font-black text-2xl text-white">${place}</span>
-              <span class="text-[10px] uppercase font-bold text-slate-300">${place === 1 ? 'Winner' : 'Runner'}</span>
-            </div>
-          </div>
-        `;
-      };
-
-      let html = '';
-      if (second) html += renderPodiumPillar(second, 2, 'h-32', 'bg-gradient-to-t from-slate-900 to-slate-700/80', 'border-slate-400');
-      if (first) html += renderPodiumPillar(first, 1, 'h-44', 'bg-gradient-to-t from-yellow-950/80 to-yellow-500/80', 'border-yellow-400');
-      if (third) html += renderPodiumPillar(third, 3, 'h-24', 'bg-gradient-to-t from-amber-950/80 to-amber-700/80', 'border-amber-600');
-
-      podiumContainer.innerHTML = html;
-
-      // Full table list
-      const finalList = document.getElementById('finalRankingsList');
-      finalList.innerHTML = sorted.map((team, idx) => `
-        <div class="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between text-sm">
-          <div class="flex items-center space-x-3">
-            <span class="font-orbitron font-bold text-slate-400 w-6">#${idx + 1}</span>
-            <span class="text-xl">${team.mascot}</span>
-            <span class="font-bold text-white">${team.name}</span>
-          </div>
-          <span class="font-orbitron font-extrabold text-cyan-400">${team.score} PTS</span>
-        </div>
-      `).join('');
-    }
-
-    function resetEntireTournament() {
-      if (timerInterval) clearInterval(timerInterval);
-      if (transitionTimeout) clearTimeout(transitionTimeout);
-      gameState.status = 'LOBBY';
-      gameState.currentQuestionIndex = 0;
-      gameState.timerSeconds = QUESTION_TIME_LIMIT;
-      Object.values(gameState.teams).forEach(t => { t.score = 0; t.hasAnswered = false; });
-      broadcast({ type: 'SYNC_STATE', state: gameState });
-      showSection('roleSelectScreen');
-    }
-
-    /* =====================================================================
-       11. INCOMING MESSAGE HANDLER (REAL-TIME BUS)
-       ==================================================================== */
-    function handleIncomingMessage(data) {
-      if (!data || !data.type) return;
-
-      switch (data.type) {
-        case 'TEAM_JOIN':
-          if (data.team) {
-            gameState.teams[data.team.id] = data.team;
-            if (currentRole === 'HOST') {
-              updateHostLobbyUI();
-              broadcast({ type: 'SYNC_STATE', state: gameState });
-            }
-          }
-          break;
-
-        case 'SYNC_STATE':
-          if (data.state) {
-            gameState = data.state;
-            if (currentRole === 'HOST' && gameState.status === 'LOBBY') {
-              updateHostLobbyUI();
-            }
-          }
-          break;
-
-        case 'NEW_QUESTION':
-          gameState = data.state;
-          renderQuestionUI();
-          break;
-
-        case 'TIMER_TICK':
-          gameState.timerSeconds = data.seconds;
-          updateTimerRing(data.seconds);
-          break;
-
-        case 'ANSWER_SUBMITTED':
-          if (gameState.teams[data.teamId]) {
-            const t = gameState.teams[data.teamId];
-            t.hasAnswered = true;
-            t.lastIsCorrect = data.isCorrect;
-            t.roundPoints = data.points;
-            t.score += data.points;
-            if (currentRole === 'HOST') {
-              updateHostAnswerStats();
-            }
-          }
-          break;
-
-        case 'ROUND_ENDED':
-          gameState = data.state;
-          showRoundBreakdown(data.correctOption);
-          break;
-
-        case 'TOURNAMENT_FINISHED':
-          gameState = data.state;
-          showFinalPodium();
-          break;
-      }
-    }
-
-    // Default initialization
-    window.addEventListener('load', () => {
-      showSection('roleSelectScreen');
-    });
+    };
   </script>
 </body>
 </html>
