@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SYNAPSE '26 - Technical Quiz Arena</title>
+  <title>SYNAPSE '26 - General Knowledge Arena</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -66,13 +66,13 @@
   <!-- JOIN VIEW (TEAMS & HOST ENTRY) -->
   <div id="screenJoin" class="screen active card">
     <h1>SYNAPSE '26</h1>
-    <p>Round 2: Rapid Technical Quiz</p>
-    <input type="text" id="teamName" placeholder="Enter Team Name (e.g. ByteForce)">
+    <p>Round 2: Rapid General Knowledge Quiz</p>
+    <input type="text" id="teamName" placeholder="Enter Team Name (e.g. Masterminds)">
     <select id="teamAvatar">
       <option value="⚡">⚡ Lightning</option>
       <option value="🚀">🚀 Rockets</option>
-      <option value="🤖">🤖 CyberBots</option>
-      <option value="🧠">🧠 Neural</option>
+      <option value="🦁">🦁 Lions</option>
+      <option value="🧠">🧠 Brainiacs</option>
       <option value="🔥">🔥 Titans</option>
     </select>
     <button onclick="joinAsTeam()">Join as Participating Team</button>
@@ -94,7 +94,7 @@
     <h2 id="playerGreeting">Welcome!</h2>
     <p>Connected to Synapse Host Server.</p>
     <div style="font-size: 50px; margin: 20px 0;">📱</div>
-    <p>Keep this screen open. The quiz will begin as soon as the Host starts Round 2!</p>
+    <p>Keep this screen open. The quiz questions will start automatically once the Host begins!</p>
   </div>
 
   <!-- PLAYER GAME SCREEN (Buttons Only, No Answers Displayed) -->
@@ -104,7 +104,7 @@
       <span id="playerScoreDisplay">Score: 0</span>
     </div>
     <div class="timer-badge" id="playerTimer">20</div>
-    <p>Select your answer immediately for maximum speed points:</p>
+    <p>Tap your option before time runs out:</p>
     <div class="btn-grid">
       <button class="opt-btn opt-A" onclick="submitPlayerAnswer(0)">A</button>
       <button class="opt-btn opt-B" onclick="submitPlayerAnswer(1)">B</button>
@@ -117,7 +117,7 @@
   <!-- HOST LOBBY -->
   <div id="screenHostLobby" class="screen card">
     <h1>HOST CONTROLS</h1>
-    <p>Scan QR code or use the link on participating phones.</p>
+    <p>Ask teams to scan the QR code or use the link on their phones.</p>
     <div id="qrcode"></div>
     <h3>Connected Teams (<span id="teamCount">0</span>)</h3>
     <div class="roster" id="rosterList"></div>
@@ -141,7 +141,7 @@
     </div>
   </div>
 
-  <!-- LEADERBOARD & TIMINGS SCREEN -->
+  <!-- LEADERBOARD & TIMINGS SCREEN (Auto-advances) -->
   <div id="screenLeaderboard" class="screen card" style="max-width: 600px;">
     <h2 id="lbTitle">Standings & Speed Timings</h2>
     <table>
@@ -155,39 +155,36 @@
       </thead>
       <tbody id="leaderboardBody"></tbody>
     </table>
-    <div id="hostNextArea" style="display: none; margin-top: 20px;">
-      <button onclick="advanceToNextQuestion()" style="background: var(--accent); color: black;">Next Question ➔</button>
-    </div>
-    <p id="playerWaitNotice" style="display: none; margin-top: 20px;">Waiting for host to load next question...</p>
+    <p id="autoNextNotice" style="margin-top: 20px; color: var(--accent); font-weight: bold;">Next question starting automatically in 4 seconds...</p>
   </div>
 
   <script>
-    // Configuration & Security Password
-    const HOST_PASSWORD = "synapse2026"; // <-- You can change your password here
+    const HOST_PASSWORD = "synapse2026";
     const QUESTION_TIME = 20;
     const channel = new BroadcastChannel('synapse_quiz_network');
 
+    // 20 General Knowledge / National Trivia Questions
     const questions = [
-      { q: "What is the worst-case time complexity of QuickSort?", options: ["O(n log n)", "O(n²)", "O(n)", "O(log n)"], correct: 1 },
-      { q: "Which protocol operates at the Transport Layer providing reliable, connection-oriented delivery?", options: ["UDP", "IP", "TCP", "ICMP"], correct: 2 },
-      { q: "In Operating Systems, which condition does NOT cause a Deadlock?", options: ["Mutual Exclusion", "Preemption", "Circular Wait", "Hold and Wait"], correct: 1 },
-      { q: "Which data structure follows the LIFO principle?", options: ["Queue", "Stack", "Binary Search Tree", "Linked List"], correct: 1 },
-      { q: "Which normal form removes transitive functional dependency in databases?", options: ["1NF", "2NF", "3NF", "BCNF"], correct: 2 },
-      { q: "What is the size of an IPv6 address?", options: ["32 bits", "64 bits", "128 bits", "256 bits"], correct: 2 },
-      { q: "Which Python keyword prevents variable assignment modifications outside its scope?", options: ["static", "const", "global", "final"], correct: 2 },
-      { q: "In Git, which command safely records snapshots without altering existing branch pointer history?", options: ["git reset", "git revert", "git rebase", "git checkout"], correct: 1 },
-      { q: "Which algorithm is used for finding shortest paths in a weighted graph with non-negative edges?", options: ["Prim's", "Dijkstra's", "Kruskal's", "KMP"], correct: 1 },
-      { q: "What does the 'A' in ACID properties of DBMS represent?", options: ["Availability", "Atomicity", "Accuracy", "Authentication"], correct: 1 },
-      { q: "Which HTTP status code signifies 'Forbidden' access?", options: ["401", "403", "404", "500"], correct: 1 },
-      { q: "Which hardware registers store the next instruction memory address?", options: ["Accumulator", "Program Counter", "Instruction Register", "Memory Buffer Register"], correct: 1 },
-      { q: "What is the primary activation function used in standard Multi-Layer Perceptron hidden layers to prevent vanishing gradients?", options: ["Sigmoid", "Softmax", "ReLU", "Step"], correct: 2 },
-      { q: "Which sorting algorithm performs minimum number of memory swaps in worst case?", options: ["Selection Sort", "Bubble Sort", "Insertion Sort", "Merge Sort"], correct: 0 },
-      { q: "In cryptography, RSA is an example of what type of encryption?", options: ["Symmetric", "Asymmetric", "Hashing", "Stream Cipher"], correct: 1 },
-      { q: "Which memory allocation scheme causes external fragmentation?", options: ["Paging", "Segmentation", "Fixed Partitioning", "Virtual Memory"], correct: 1 },
-      { q: "In Linux, which command modifies read, write, and execute permissions of a file?", options: ["chown", "chmod", "chgrp", "touch"], correct: 1 },
-      { q: "What is the time complexity to access an element in a Hash Table in the average case?", options: ["O(1)", "O(log n)", "O(n)", "O(n²)"], correct: 0 },
-      { q: "Which CSS layout mechanism is natively optimized for 2-dimensional layouts?", options: ["Flexbox", "Grid", "Float", "Inline-Block"], correct: 1 },
-      { q: "In computer vision and deep learning, what does CNN stand for?", options: ["Central Neural Network", "Convolutional Neural Network", "Cascaded Node Network", "Continuous Numerical Node"], correct: 1 }
+      { q: "What is the national animal of India?", options: ["Lion", "Royal Bengal Tiger", "Indian Elephant", "Leopard"], correct: 1 },
+      { q: "What is the national bird of India?", options: ["Indian Peacock", "Great Indian Bustard", "Sparrow", "Parrot"], correct: 0 },
+      { q: "Which river is officially recognized as the National River of India?", options: ["Yamuna", "Godavari", "Ganga", "Brahmaputra"], correct: 2 },
+      { q: "What is the national aquatic animal of India?", options: ["Ganges River Dolphin", "Blue Whale", "Gharial", "Olive Ridley Turtle"], correct: 0 },
+      { q: "Who composed the National Anthem of India ('Jana Gana Mana')?", options: ["Bankim Chandra Chatterjee", "Rabindranath Tagore", "Sarojini Naidu", "Subhas Chandra Bose"], correct: 1 },
+      { q: "Which monument is officially known as the National War Memorial of India?", options: ["India Gate", "Red Fort", "National War Memorial, New Delhi", "Gateway of India"], correct: 2 },
+      { q: "What is the national heritage animal of India?", options: ["Snow Leopard", "Indian Elephant", "One-horned Rhinoceros", "Blackbuck"], correct: 1 },
+      { q: "What is the national fruit of India?", options: ["Banana", "Apple", "Mango", "Jackfruit"], correct: 2 },
+      { q: "Which city is known as the 'Space City' of India?", options: ["Hyderabad", "Bengaluru", "Chennai", "Thiruvananthapuram"], correct: 1 },
+      { q: "Who was the first Indian citizen to travel into outer space?", options: ["Kalpana Chawla", "Rakesh Sharma", "Sunita Williams", "Vikram Sarabhai"], correct: 1 },
+      { q: "What is the national tree of India?", options: ["Neem Tree", "Banyan Tree", "Peepal Tree", "Sandalwood"], correct: 1 },
+      { q: "Which Indian state has the longest coastline on the mainland?", options: ["Tamil Nadu", "Maharashtra", "Gujarat", "Andhra Pradesh"], correct: 2 },
+      { q: "What is the national reptile of India?", options: ["Indian Cobra", "King Cobra", "Monitor Lizard", "Russell's Viper"], correct: 1 },
+      { q: "Who is known as the 'Father of the Indian Space Program'?", options: ["Dr. Homi Bhabha", "Dr. A.P.J. Abdul Kalam", "Dr. Vikram Sarabhai", "Satish Dhawan"], correct: 2 },
+      { q: "Which planet in our solar system is known as the Red Planet?", options: ["Venus", "Jupiter", "Mars", "Mercury"], correct: 2 },
+      { q: "What is the highest civilian award in the Republic of India?", options: ["Padma Vibhushan", "Bharat Ratna", "Param Vir Chakra", "Padma Shri"], correct: 1 },
+      { q: "In which year did India adopt its Constitution?", options: ["1947", "1948", "1950", "1952"], correct: 2 },
+      { q: "What is the currency of the United Kingdom?", options: ["Euro", "Pound Sterling", "Dollar", "Franc"], correct: 1 },
+      { q: "Which is the largest ocean on Earth?", options: ["Atlantic Ocean", "Indian Ocean", "Pacific Ocean", "Arctic Ocean"], correct: 2 },
+      { q: "How many colors/stripes are there in the National Flag of India (excluding the Chakra)?", options: ["2", "3", "4", "5"], correct: 1 }
     ];
 
     let currentRole = null; // 'HOST' or 'PLAYER'
@@ -281,6 +278,7 @@
 
         channel.postMessage({ action: 'TIMER_TICK', timer: gameState.timer });
 
+        // When timer hits 0 -> automatically advance
         if (gameState.timer <= 0) {
           clearInterval(timerInterval);
           finishQuestionRound();
@@ -295,6 +293,7 @@
 
       channel.postMessage({ action: 'ROUND_ENDED', correctIdx: q.correct });
 
+      // Show the correct answer on Host screen for 2.5 seconds, then display Leaderboard
       setTimeout(() => {
         displayLeaderboard();
       }, 2500);
@@ -315,17 +314,20 @@
         </tr>
       `).join('');
 
+      const notice = document.getElementById('autoNextNotice');
+
+      if (gameState.qIndex >= questions.length - 1) {
+        document.getElementById('lbTitle').innerText = "🏆 Final Synapse Winners 🏆";
+        notice.innerText = "Quiz Completed! Thank you for participating.";
+        return;
+      }
+
+      // Automatically advance to the next question after 4 seconds
+      notice.innerText = "Next question starting automatically in 4 seconds...";
       if (currentRole === 'HOST') {
-        document.getElementById('hostNextArea').style.display = 'block';
-        document.getElementById('playerWaitNotice').style.display = 'none';
-        if (gameState.qIndex >= questions.length - 1) {
-          document.getElementById('lbTitle').innerText = "🏆 Final Synapse Round 2 Winners 🏆";
-          document.querySelector('#hostNextArea button').innerText = "Quiz Completed";
-          document.querySelector('#hostNextArea button').disabled = true;
-        }
-      } else {
-        document.getElementById('hostNextArea').style.display = 'none';
-        document.getElementById('playerWaitNotice').style.display = 'block';
+        setTimeout(() => {
+          advanceToNextQuestion();
+        }, 4000);
       }
     }
 
