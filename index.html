@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SYNAPSE '26 - Rapid Quiz Arena</title>
+  <title>SYNAPSE '26 - Live Quiz Arena</title>
+  <!-- Firebase Realtime Engine -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <!-- QR Code Generator -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -37,7 +41,7 @@
     .timer-urgent { color: var(--wrong); animation: pulse 0.5s infinite alternate; }
     @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
 
-    /* Player Options with Labels & Text */
+    /* Player Options */
     .btn-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
     .opt-btn { 
       background: #1e293b; 
@@ -52,7 +56,6 @@
       display: flex;
       align-items: center;
       line-height: 1.3;
-      transition: background 0.15s, border-color 0.15s;
     }
     .opt-btn .opt-badge {
       display: inline-block;
@@ -65,10 +68,7 @@
       font-weight: 800;
       flex-shrink: 0;
     }
-    .opt-btn.selected {
-      background: #1e3a8a !important;
-      border-color: var(--accent) !important;
-    }
+    .opt-btn.selected { background: #1e3a8a !important; border-color: var(--accent) !important; }
     .opt-btn:disabled { opacity: 0.7; cursor: not-allowed; }
     .opt-A { border-color: #ef4444; } .opt-A .opt-badge { background: #ef4444; color: white; }
     .opt-B { border-color: #3b82f6; } .opt-B .opt-badge { background: #3b82f6; color: white; }
@@ -80,12 +80,13 @@
     .host-answers li { padding: 12px 16px; margin-bottom: 8px; border-radius: 8px; background: #1e293b; border-left: 5px solid #64748b; font-size: 15px; }
     .host-answers li.correct-highlight { border-left-color: var(--correct); background: rgba(16, 185, 129, 0.15); font-weight: bold; }
 
-    /* Badges & Tables */
+    /* Badges & Standings Table */
     .roster { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 16px 0; }
     .badge { background: #1e293b; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 20px; font-size: 14px; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left; }
     th, td { padding: 10px; border-bottom: 1px solid #1e293b; font-size: 15px; }
     th { color: var(--muted); }
+    .my-team-row { background: rgba(56, 189, 248, 0.15); font-weight: bold; }
     #qrcode { display: flex; justify-content: center; margin: 15px 0; }
   </style>
 </head>
@@ -170,7 +171,7 @@
     </div>
   </div>
 
-  <!-- LEADERBOARD & TIMINGS SCREEN (Auto-advances) -->
+  <!-- STANDINGS & SPEED TIMINGS SCREEN (Shown after every question to everyone) -->
   <div id="screenLeaderboard" class="screen card" style="max-width: 600px;">
     <h2 id="lbTitle">Standings & Speed Timings</h2>
     <table>
@@ -178,19 +179,26 @@
         <tr>
           <th>Rank</th>
           <th>Team</th>
-          <th>Last Response Time</th>
+          <th>Speed Timing</th>
           <th>Total Score</th>
         </tr>
       </thead>
       <tbody id="leaderboardBody"></tbody>
     </table>
-    <p id="autoNextNotice" style="margin-top: 20px; color: var(--accent); font-weight: bold;">Next question starting in 3 seconds...</p>
+    <p id="autoNextNotice" style="margin-top: 20px; color: var(--accent); font-weight: bold;">Next question starting in 4 seconds...</p>
   </div>
 
   <script>
     const HOST_PASSWORD = "synapse2026";
     const QUESTION_TIME = 20;
-    const channel = new BroadcastChannel('synapse_quiz_network');
+
+    // Real-Time Global Relay Database (Works across different phones and 4G/5G/Wi-Fi)
+    const firebaseConfig = {
+      databaseURL: "https://synapse-quiz-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const gameRef = db.ref('synapse_round2');
 
     const questions = [
       { q: "What is the national animal of India?", options: ["Lion", "Royal Bengal Tiger", "Indian Elephant", "Leopard"], correct: 1 },
@@ -217,21 +225,18 @@
 
     let currentRole = null; // 'HOST' or 'PLAYER'
     let myTeam = { name: '', avatar: '', score: 0, lastTime: '-' };
-    let gameState = {
-      qIndex: -1,
-      timer: QUESTION_TIME,
-      submissions: {},
-      isTransitioning: false
-    };
-
+    let qIndex = -1;
+    let timerVal = QUESTION_TIME;
     let timerInterval = null;
+    let activeQuestionStart = 0;
+    let localSubmissions = {};
 
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
     }
 
-    // --- PASSWORD AUTHENTICATION ---
+    // --- AUTHENTICATION ---
     function openHostPasswordModal() {
       document.getElementById('hostPasswordInput').value = '';
       document.getElementById('authError').innerText = '';
@@ -239,15 +244,14 @@
     }
 
     function verifyHostPassword() {
-      const input = document.getElementById('hostPasswordInput').value;
-      if (input === HOST_PASSWORD) {
+      if (document.getElementById('hostPasswordInput').value === HOST_PASSWORD) {
         startAsHost();
       } else {
         document.getElementById('authError').innerText = 'Incorrect host password! Access denied.';
       }
     }
 
-    // --- HOST INITIALIZATION ---
+    // --- HOST LOGIC ---
     function startAsHost() {
       currentRole = 'HOST';
       showScreen('screenHostLobby');
@@ -257,25 +261,45 @@
         width: 140,
         height: 140
       });
-      localStorage.setItem('synapse_teams', JSON.stringify({}));
+
+      // Reset game room state in cloud
+      gameRef.set({
+        state: 'LOBBY',
+        qIndex: -1,
+        timer: QUESTION_TIME,
+        teams: {},
+        answers: {}
+      });
+
+      // Listen for joined teams
+      gameRef.child('teams').on('value', snap => {
+        const teams = snap.val() || {};
+        document.getElementById('teamCount').innerText = Object.keys(teams).length;
+        document.getElementById('rosterList').innerHTML = Object.values(teams)
+          .map(t => `<div class="badge">${t.avatar} ${t.name}</div>`).join('');
+      });
     }
 
     function beginQuiz() {
-      gameState.qIndex = 0;
+      qIndex = 0;
       loadHostQuestion();
     }
 
     function loadHostQuestion() {
-      const q = questions[gameState.qIndex];
-      gameState.timer = QUESTION_TIME;
-      gameState.submissions = {};
-      gameState.isTransitioning = false;
+      const q = questions[qIndex];
+      timerVal = QUESTION_TIME;
+      localSubmissions = {};
+      activeQuestionStart = Date.now();
 
-      const totalTeams = Object.keys(JSON.parse(localStorage.getItem('synapse_teams') || '{}')).length;
-      document.getElementById('hostQIndex').innerText = `Question ${gameState.qIndex + 1} / ${questions.length}`;
-      document.getElementById('hostQuestionText').innerText = q.q;
-      document.getElementById('hostSubmittedCount').innerText = `Answered: 0 / ${totalTeams}`;
-      document.getElementById('liveSubmissions').innerHTML = '<span style="color:#64748b">Listening for answers...</span>';
+      gameRef.child('answers').remove(); // Clear previous answers
+
+      gameRef.child('teams').once('value', snap => {
+        const totalTeams = Object.keys(snap.val() || {}).length;
+        document.getElementById('hostQIndex').innerText = `Question ${qIndex + 1} / ${questions.length}`;
+        document.getElementById('hostQuestionText').innerText = q.q;
+        document.getElementById('hostSubmittedCount').innerText = `Answered: 0 / ${totalTeams}`;
+        document.getElementById('liveSubmissions').innerHTML = '<span style="color:#64748b">Listening for answers...</span>';
+      });
 
       const list = document.getElementById('hostOptionsList');
       list.innerHTML = '';
@@ -288,15 +312,17 @@
 
       showScreen('screenHostGame');
 
-      channel.postMessage({
-        action: 'START_QUESTION',
-        qIndex: gameState.qIndex,
+      // Update state in cloud: Tells all phones to open the question
+      gameRef.update({
+        state: 'QUESTION',
+        qIndex: qIndex,
         question: q.q,
         options: q.options,
-        duration: QUESTION_TIME
+        timer: QUESTION_TIME
       });
 
       startHostTimer();
+      listenForHostAnswers();
     }
 
     function startHostTimer() {
@@ -305,191 +331,187 @@
       timerEl.classList.remove('timer-urgent');
 
       timerInterval = setInterval(() => {
-        gameState.timer--;
-        timerEl.innerText = gameState.timer;
-        if (gameState.timer <= 5) timerEl.classList.add('timer-urgent');
+        timerVal--;
+        timerEl.innerText = timerVal;
+        if (timerVal <= 5) timerEl.classList.add('timer-urgent');
 
-        channel.postMessage({ action: 'TIMER_TICK', timer: gameState.timer });
+        gameRef.update({ timer: timerVal });
 
-        if (gameState.timer <= 0) {
+        if (timerVal <= 0) {
           clearInterval(timerInterval);
           finishQuestionRound();
         }
       }, 1000);
     }
 
-    function finishQuestionRound() {
-      if (gameState.isTransitioning) return;
-      gameState.isTransitioning = true;
-      clearInterval(timerInterval);
+    function listenForHostAnswers() {
+      gameRef.child('answers').on('child_added', snap => {
+        const ans = snap.val();
+        if (!ans || localSubmissions[ans.teamName]) return;
+        localSubmissions[ans.teamName] = true;
 
-      const q = questions[gameState.qIndex];
+        const isCorrect = ans.option === questions[qIndex].correct;
+        const timeVal = parseFloat(ans.timeTaken);
+
+        // Update score in cloud database
+        gameRef.child(`teams/${ans.teamName}`).transaction(t => {
+          if (t) {
+            if (isCorrect) {
+              const points = Math.round(500 + Math.max(0, (QUESTION_TIME - timeVal) / QUESTION_TIME * 500));
+              t.score = (t.score || 0) + points;
+            }
+            t.lastTime = `${ans.timeTaken}s (${isCorrect ? 'Correct' : 'Wrong'})`;
+          }
+          return t;
+        });
+
+        // Update Host Live UI
+        gameRef.child('teams').once('value', teamSnap => {
+          const total = Object.keys(teamSnap.val() || {}).length;
+          const answered = Object.keys(localSubmissions).length;
+          document.getElementById('hostSubmittedCount').innerText = `Answered: ${answered} / ${total}`;
+
+          const feed = document.getElementById('liveSubmissions');
+          if (answered === 1) feed.innerHTML = '';
+          feed.innerHTML += `<span class="badge" style="margin: 2px;">${ans.avatar} ${ans.teamName} (${ans.timeTaken}s)</span> `;
+
+          // If all teams have answered, advance immediately
+          if (answered >= total && timerVal > 0) {
+            clearInterval(timerInterval);
+            finishQuestionRound();
+          }
+        });
+      });
+    }
+
+    function finishQuestionRound() {
+      clearInterval(timerInterval);
+      gameRef.child('answers').off();
+
+      const q = questions[qIndex];
       const correctLi = document.getElementById(`hostOpt_${q.correct}`);
       if (correctLi) correctLi.classList.add('correct-highlight');
 
-      channel.postMessage({ action: 'ROUND_ENDED', correctIdx: q.correct });
+      // Fetch latest scores and publish standings to all phones
+      gameRef.child('teams').once('value', snap => {
+        const teams = snap.val() || {};
+        const sorted = Object.values(teams).sort((a, b) => b.score - a.score);
 
-      // Show answer confirmation for 1.8 seconds, then show rankings
-      setTimeout(() => {
-        displayLeaderboard();
-      }, 1800);
-    }
+        gameRef.update({
+          state: 'LEADERBOARD',
+          standings: sorted,
+          isFinal: qIndex >= questions.length - 1
+        });
 
-    function displayLeaderboard() {
-      showScreen('screenLeaderboard');
-      const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
-      const sorted = Object.values(teams).sort((a, b) => b.score - a.score);
-
-      const tbody = document.getElementById('leaderboardBody');
-      tbody.innerHTML = sorted.map((t, i) => `
-        <tr>
-          <td><strong>#${i + 1}</strong></td>
-          <td>${t.avatar} ${t.name}</td>
-          <td>${t.lastTime || '-'}</td>
-          <td style="color:var(--accent); font-weight:bold;">${t.score}</td>
-        </tr>
-      `).join('');
-
-      const notice = document.getElementById('autoNextNotice');
-
-      if (gameState.qIndex >= questions.length - 1) {
-        document.getElementById('lbTitle').innerText = "🏆 Final Synapse Winners 🏆";
-        notice.innerText = "Quiz Completed! Thank you for participating.";
-        return;
-      }
-
-      notice.innerText = "Next question starting automatically in 3 seconds...";
-      if (currentRole === 'HOST') {
+        // Auto transition after 4 seconds
         setTimeout(() => {
-          advanceToNextQuestion();
-        }, 3000);
-      }
+          qIndex++;
+          if (qIndex < questions.length) {
+            loadHostQuestion();
+          }
+        }, 4000);
+      });
     }
 
-    function advanceToNextQuestion() {
-      gameState.qIndex++;
-      if (gameState.qIndex < questions.length) {
-        loadHostQuestion();
-      }
-    }
-
-    // --- PLAYER ACTIONS ---
+    // --- PLAYER LOGIC ---
     function joinAsTeam() {
-      const name = document.getElementById('teamName').value.trim();
+      const name = document.getElementById('teamName').value.trim().replace(/[\.\#\$\[\]]/g, '');
       const avatar = document.getElementById('teamAvatar').value;
-      if (!name) return alert('Please enter your Team Name');
+      if (!name) return alert('Please enter a valid Team Name');
 
       currentRole = 'PLAYER';
       myTeam = { name, avatar, score: 0, lastTime: '-' };
       document.getElementById('playerGreeting').innerText = `${avatar} ${name}`;
       showScreen('screenPlayerLobby');
 
-      channel.postMessage({ action: 'TEAM_JOINED', team: myTeam });
+      // Register into Firebase
+      gameRef.child(`teams/${name}`).set(myTeam);
+
+      // Listen for Game State changes from Host
+      listenToGameState();
     }
 
     function submitPlayerAnswer(optionIdx) {
-      // Instantly disable buttons and highlight selected button
       document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = true);
       document.getElementById(`btnOpt${optionIdx}`).classList.add('selected');
       document.getElementById('playerStatus').innerText = "✓ Answer locked! Waiting for others...";
-      
-      const timeTaken = ((QUESTION_TIME - gameState.timer) + (Math.random() * 0.25)).toFixed(2);
-      myTeam.lastTime = `${timeTaken}s`;
 
-      channel.postMessage({
-        action: 'SUBMIT_ANSWER',
+      const timeTaken = ((QUESTION_TIME - timerVal) + (Math.random() * 0.15)).toFixed(2);
+
+      // Send answer to cloud
+      gameRef.child(`answers/${myTeam.name}`).set({
         teamName: myTeam.name,
+        avatar: myTeam.avatar,
         option: optionIdx,
         timeTaken: timeTaken
       });
     }
 
-    // --- BROADCAST MESSAGING ---
-    channel.onmessage = (e) => {
-      const data = e.data;
+    function listenToGameState() {
+      gameRef.on('value', snap => {
+        const data = snap.val();
+        if (!data || currentRole !== 'PLAYER') return;
 
-      if (data.action === 'TEAM_JOINED' && currentRole === 'HOST') {
-        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
-        teams[data.team.name] = data.team;
-        localStorage.setItem('synapse_teams', JSON.stringify(teams));
-        
-        document.getElementById('teamCount').innerText = Object.keys(teams).length;
-        document.getElementById('rosterList').innerHTML = Object.values(teams)
-          .map(t => `<div class="badge">${t.avatar} ${t.name}</div>`).join('');
-      }
-
-      if (data.action === 'SUBMIT_ANSWER' && currentRole === 'HOST') {
-        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
-        const team = teams[data.teamName];
-        if (!team) return;
-
-        const isCorrect = data.option === questions[gameState.qIndex].correct;
-        const timeVal = parseFloat(data.timeTaken);
-        
-        if (isCorrect) {
-          const points = Math.round(500 + Math.max(0, (QUESTION_TIME - timeVal) / QUESTION_TIME * 500));
-          team.score += points;
-        }
-        team.lastTime = `${data.timeTaken}s (${isCorrect ? 'Correct' : 'Wrong'})`;
-        teams[data.teamName] = team;
-        localStorage.setItem('synapse_teams', JSON.stringify(teams));
-
-        gameState.submissions[data.teamName] = true;
-        const totalTeams = Object.keys(teams).length;
-        const answeredTeams = Object.keys(gameState.submissions).length;
-
-        document.getElementById('hostSubmittedCount').innerText = `Answered: ${answeredTeams} / ${totalTeams}`;
-        
-        const feed = document.getElementById('liveSubmissions');
-        if (answeredTeams === 1) feed.innerHTML = '';
-        feed.innerHTML += `<span class="badge" style="margin: 2px;">${team.avatar} ${team.name} (${data.timeTaken}s)</span> `;
-
-        // IF ALL TEAMS HAVE ANSWERED -> PROCEED IMMEDIATELY TO NEXT QUESTION
-        if (answeredTeams >= totalTeams && !gameState.isTransitioning) {
-          finishQuestionRound();
-        }
-      }
-
-      if (data.action === 'START_QUESTION' && currentRole === 'PLAYER') {
-        gameState.timer = data.duration;
-        showScreen('screenPlayerGame');
-        
-        document.getElementById('playerQIndex').innerText = `Question ${data.qIndex + 1} / ${questions.length}`;
-        document.getElementById('playerTimer').innerText = data.duration;
-        document.getElementById('playerQuestionText').innerText = data.question;
-        
-        document.getElementById('pOpt0').innerText = data.options[0];
-        document.getElementById('pOpt1').innerText = data.options[1];
-        document.getElementById('pOpt2').innerText = data.options[2];
-        document.getElementById('pOpt3').innerText = data.options[3];
-
-        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
-        if (teams[myTeam.name]) {
-          document.getElementById('playerScoreDisplay').innerText = `Score: ${teams[myTeam.name].score}`;
+        // Sync timer
+        if (data.timer !== undefined) {
+          timerVal = data.timer;
+          const timerEl = document.getElementById('playerTimer');
+          timerEl.innerText = data.timer;
+          if (data.timer <= 5) timerEl.classList.add('timer-urgent');
         }
 
-        document.getElementById('playerStatus').innerText = '';
-        document.querySelectorAll('.opt-btn').forEach(btn => {
-          btn.disabled = false;
-          btn.classList.remove('selected');
-        });
-      }
+        // New Question Screen
+        if (data.state === 'QUESTION' && qIndex !== data.qIndex) {
+          qIndex = data.qIndex;
+          showScreen('screenPlayerGame');
 
-      if (data.action === 'TIMER_TICK' && currentRole === 'PLAYER') {
-        gameState.timer = data.timer;
-        const timerEl = document.getElementById('playerTimer');
-        timerEl.innerText = data.timer;
-        if (data.timer <= 5) timerEl.classList.add('timer-urgent');
-      }
+          document.getElementById('playerQIndex').innerText = `Question ${data.qIndex + 1} / ${questions.length}`;
+          document.getElementById('playerQuestionText').innerText = data.question;
 
-      if (data.action === 'ROUND_ENDED' && currentRole === 'PLAYER') {
-        document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = true);
-        document.getElementById('playerStatus').innerText = "Round over! Transitioning to next question...";
-        setTimeout(() => {
-          displayLeaderboard();
-        }, 1800);
+          document.getElementById('pOpt0').innerText = data.options[0];
+          document.getElementById('pOpt1').innerText = data.options[1];
+          document.getElementById('pOpt2').innerText = data.options[2];
+          document.getElementById('pOpt3').innerText = data.options[3];
+
+          document.getElementById('playerStatus').innerText = '';
+          document.querySelectorAll('.opt-btn').forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('selected');
+          });
+
+          // Sync current player score
+          if (data.teams && data.teams[myTeam.name]) {
+            document.getElementById('playerScoreDisplay').innerText = `Score: ${data.teams[myTeam.name].score || 0}`;
+          }
+        }
+
+        // Leaderboard & Timings Display (after each round & final)
+        if (data.state === 'LEADERBOARD') {
+          renderStandings(data.standings || [], data.isFinal);
+        }
+      });
+    }
+
+    function renderStandings(sorted, isFinal) {
+      showScreen('screenLeaderboard');
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = sorted.map((t, i) => `
+        <tr class="${(currentRole === 'PLAYER' && t.name === myTeam.name) ? 'my-team-row' : ''}">
+          <td><strong>#${i + 1}</strong></td>
+          <td>${t.avatar} ${t.name}</td>
+          <td>${t.lastTime || 'No answer'}</td>
+          <td style="color:var(--accent); font-weight:bold;">${t.score || 0}</td>
+        </tr>
+      `).join('');
+
+      const notice = document.getElementById('autoNextNotice');
+      if (isFinal) {
+        document.getElementById('lbTitle').innerText = "🏆 Final Synapse Winners 🏆";
+        notice.innerText = "Quiz Completed! Thank you for participating.";
+      } else {
+        notice.innerText = "Next question starting automatically in 4 seconds...";
       }
-    };
+    }
   </script>
 </body>
 </html>
