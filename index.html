@@ -17,13 +17,13 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
-    .screen { display: none; width: 100%; max-width: 540px; text-align: center; }
+    .screen { display: none; width: 100%; max-width: 580px; text-align: center; }
     .active { display: block; animation: fadeIn 0.25s ease-in-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
     .card { background: var(--card); border: 1px solid #1e293b; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     h1 { font-size: 28px; font-weight: 800; color: var(--accent); letter-spacing: 1px; margin-bottom: 4px; }
-    h2 { font-size: 20px; margin-bottom: 16px; }
+    h2 { font-size: 20px; line-height: 1.4; margin-bottom: 16px; }
     p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
 
     input, select, button { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 10px; border: 1px solid #334155; font-size: 16px; background: #1e293b; color: white; outline: none; }
@@ -37,15 +37,39 @@
     .timer-urgent { color: var(--wrong); animation: pulse 0.5s infinite alternate; }
     @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
 
-    /* Player Options */
-    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
-    .opt-btn { background: #1e293b; border: 2px solid #334155; color: white; padding: 22px 12px; font-size: 18px; font-weight: 700; border-radius: 12px; cursor: pointer; }
+    /* Player Options with Labels & Text */
+    .btn-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+    .opt-btn { 
+      background: #1e293b; 
+      border: 2px solid #334155; 
+      color: white; 
+      padding: 16px 14px; 
+      font-size: 16px; 
+      font-weight: 600; 
+      border-radius: 12px; 
+      cursor: pointer; 
+      text-align: left;
+      display: flex;
+      align-items: center;
+      line-height: 1.3;
+    }
+    .opt-btn .opt-badge {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+      text-align: center;
+      border-radius: 6px;
+      margin-right: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
     .opt-btn:active { background: #334155; }
     .opt-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .opt-A { border-color: #ef4444; }
-    .opt-B { border-color: #3b82f6; }
-    .opt-C { border-color: #eab308; }
-    .opt-D { border-color: #10b981; }
+    .opt-A { border-color: #ef4444; } .opt-A .opt-badge { background: #ef4444; color: white; }
+    .opt-B { border-color: #3b82f6; } .opt-B .opt-badge { background: #3b82f6; color: white; }
+    .opt-C { border-color: #eab308; } .opt-C .opt-badge { background: #eab308; color: black; }
+    .opt-D { border-color: #10b981; } .opt-D .opt-badge { background: #10b981; color: white; }
 
     /* Host Answer List */
     .host-answers { list-style: none; margin: 16px 0; text-align: left; }
@@ -63,7 +87,7 @@
 </head>
 <body>
 
-  <!-- JOIN VIEW (TEAMS & HOST ENTRY) -->
+  <!-- JOIN VIEW -->
   <div id="screenJoin" class="screen active card">
     <h1>SYNAPSE '26</h1>
     <p>Round 2: Rapid General Knowledge Quiz</p>
@@ -94,22 +118,23 @@
     <h2 id="playerGreeting">Welcome!</h2>
     <p>Connected to Synapse Host Server.</p>
     <div style="font-size: 50px; margin: 20px 0;">📱</div>
-    <p>Keep this screen open. The quiz questions will start automatically once the Host begins!</p>
+    <p>Keep this screen open. Questions and options will appear here automatically when the host starts!</p>
   </div>
 
-  <!-- PLAYER GAME SCREEN (Buttons Only, No Answers Displayed) -->
+  <!-- PLAYER GAME SCREEN (Displays Question, Timer, and Full Options Text) -->
   <div id="screenPlayerGame" class="screen card">
     <div style="display: flex; justify-content: space-between; color: var(--muted); font-size: 13px;">
       <span id="playerQIndex">Question 1 / 20</span>
       <span id="playerScoreDisplay">Score: 0</span>
     </div>
     <div class="timer-badge" id="playerTimer">20</div>
-    <p>Tap your option before time runs out:</p>
+    <h2 id="playerQuestionText" style="text-align: left; margin: 8px 0 16px; color: #f1f5f9;">Question text here</h2>
+    
     <div class="btn-grid">
-      <button class="opt-btn opt-A" onclick="submitPlayerAnswer(0)">A</button>
-      <button class="opt-btn opt-B" onclick="submitPlayerAnswer(1)">B</button>
-      <button class="opt-btn opt-C" onclick="submitPlayerAnswer(2)">C</button>
-      <button class="opt-btn opt-D" onclick="submitPlayerAnswer(3)">D</button>
+      <button class="opt-btn opt-A" onclick="submitPlayerAnswer(0)"><span class="opt-badge">A</span><span id="pOpt0">Option A</span></button>
+      <button class="opt-btn opt-B" onclick="submitPlayerAnswer(1)"><span class="opt-badge">B</span><span id="pOpt1">Option B</span></button>
+      <button class="opt-btn opt-C" onclick="submitPlayerAnswer(2)"><span class="opt-badge">C</span><span id="pOpt2">Option C</span></button>
+      <button class="opt-btn opt-D" onclick="submitPlayerAnswer(3)"><span class="opt-badge">D</span><span id="pOpt3">Option D</span></button>
     </div>
     <p id="playerStatus" style="margin-top: 15px; color: var(--accent); font-weight: bold;"></p>
   </div>
@@ -117,14 +142,14 @@
   <!-- HOST LOBBY -->
   <div id="screenHostLobby" class="screen card">
     <h1>HOST CONTROLS</h1>
-    <p>Ask teams to scan the QR code or use the link on their phones.</p>
+    <p>Ask teams to scan the QR code or visit the website link on their phones.</p>
     <div id="qrcode"></div>
     <h3>Connected Teams (<span id="teamCount">0</span>)</h3>
     <div class="roster" id="rosterList"></div>
     <button onclick="beginQuiz()" style="background: var(--correct); font-size: 18px; margin-top: 15px;">START QUIZ ARENA</button>
   </div>
 
-  <!-- HOST GAME SCREEN (Timer, Full Question, Correct Key & Live Submission Feed) -->
+  <!-- HOST GAME SCREEN -->
   <div id="screenHostGame" class="screen card" style="max-width: 650px;">
     <div style="display: flex; justify-content: space-between; color: var(--muted);">
       <span id="hostQIndex">Question 1 / 20</span>
@@ -163,7 +188,6 @@
     const QUESTION_TIME = 20;
     const channel = new BroadcastChannel('synapse_quiz_network');
 
-    // 20 General Knowledge / National Trivia Questions
     const questions = [
       { q: "What is the national animal of India?", options: ["Lion", "Royal Bengal Tiger", "Indian Elephant", "Leopard"], correct: 1 },
       { q: "What is the national bird of India?", options: ["Indian Peacock", "Great Indian Bustard", "Sparrow", "Parrot"], correct: 0 },
@@ -184,7 +208,7 @@
       { q: "In which year did India adopt its Constitution?", options: ["1947", "1948", "1950", "1952"], correct: 2 },
       { q: "What is the currency of the United Kingdom?", options: ["Euro", "Pound Sterling", "Dollar", "Franc"], correct: 1 },
       { q: "Which is the largest ocean on Earth?", options: ["Atlantic Ocean", "Indian Ocean", "Pacific Ocean", "Arctic Ocean"], correct: 2 },
-      { q: "How many colors/stripes are there in the National Flag of India (excluding the Chakra)?", options: ["2", "3", "4", "5"], correct: 1 }
+      { q: "How many colours/stripes are there in the National Flag of India (excluding the Chakra)?", options: ["2", "3", "4", "5"], correct: 1 }
     ];
 
     let currentRole = null; // 'HOST' or 'PLAYER'
@@ -257,9 +281,12 @@
 
       showScreen('screenHostGame');
 
+      // Send the question AND options directly to all player devices
       channel.postMessage({
         action: 'START_QUESTION',
         qIndex: gameState.qIndex,
+        question: q.q,
+        options: q.options,
         duration: QUESTION_TIME
       });
 
@@ -278,7 +305,6 @@
 
         channel.postMessage({ action: 'TIMER_TICK', timer: gameState.timer });
 
-        // When timer hits 0 -> automatically advance
         if (gameState.timer <= 0) {
           clearInterval(timerInterval);
           finishQuestionRound();
@@ -293,7 +319,6 @@
 
       channel.postMessage({ action: 'ROUND_ENDED', correctIdx: q.correct });
 
-      // Show the correct answer on Host screen for 2.5 seconds, then display Leaderboard
       setTimeout(() => {
         displayLeaderboard();
       }, 2500);
@@ -322,7 +347,6 @@
         return;
       }
 
-      // Automatically advance to the next question after 4 seconds
       notice.innerText = "Next question starting automatically in 4 seconds...";
       if (currentRole === 'HOST') {
         setTimeout(() => {
@@ -406,11 +430,26 @@
         feed.innerHTML += `<span class="badge" style="margin: 2px;">${team.avatar} ${team.name} (${data.timeTaken}s)</span> `;
       }
 
+      // PARTICIPANT SCREEN UPDATES: Receives and displays both question & all option texts
       if (data.action === 'START_QUESTION' && currentRole === 'PLAYER') {
         gameState.timer = data.duration;
         showScreen('screenPlayerGame');
+        
         document.getElementById('playerQIndex').innerText = `Question ${data.qIndex + 1} / ${questions.length}`;
         document.getElementById('playerTimer').innerText = data.duration;
+        document.getElementById('playerQuestionText').innerText = data.question;
+        
+        // Populate options text into buttons
+        document.getElementById('pOpt0').innerText = data.options[0];
+        document.getElementById('pOpt1').innerText = data.options[1];
+        document.getElementById('pOpt2').innerText = data.options[2];
+        document.getElementById('pOpt3').innerText = data.options[3];
+
+        const teams = JSON.parse(localStorage.getItem('synapse_teams') || '{}');
+        if (teams[myTeam.name]) {
+          document.getElementById('playerScoreDisplay').innerText = `Score: ${teams[myTeam.name].score}`;
+        }
+
         document.getElementById('playerStatus').innerText = '';
         document.querySelectorAll('.opt-btn').forEach(btn => btn.disabled = false);
       }
